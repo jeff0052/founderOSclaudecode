@@ -214,9 +214,9 @@ def validate_attach(store: "Store", node_id: str, new_parent_id: str) -> None:
         )
     validate_active_domain(target_node)
 
-    # 2. Check DAG safety: the actual edge stored is (new_parent_id → node_id)
-    #    since the edges table convention is (parent, child) for parent edges.
-    validate_dag_safety(store, new_parent_id, node_id, edge_type="parent")
+    # 2. Check DAG safety: the actual edge stored is (node_id → new_parent_id)
+    #    using child → parent convention. Check that direction.
+    validate_dag_safety(store, node_id, new_parent_id, edge_type="parent")
 
 
 def validate_dependency(store: "Store", source_id: str, target_id: str) -> None:

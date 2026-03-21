@@ -448,7 +448,8 @@ class TestIdempotency:
         assert cached.command_id == "cmd-001"
         assert cached.data == {"node_id": "task-abcd"}
 
-    def test_unknown_command_raises(self, executor):
-        """Non-cached command_id raises NotImplementedError (no tool routing yet)."""
-        with pytest.raises(NotImplementedError):
-            executor.execute("cmd-new", "create_node", {})
+    def test_unknown_tool_returns_error(self, executor):
+        """Unknown tool name returns error ToolResult."""
+        result = executor.execute("cmd-new", "nonexistent_tool", {})
+        assert result.success is False
+        assert "Unknown tool" in result.error

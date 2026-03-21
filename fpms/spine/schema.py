@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS narrative_index (
 def init_db(db_path: str) -> sqlite3.Connection:
     """创建/打开 SQLite 数据库，建表，启用 WAL 模式。
     如果表已存在则跳过。返回连接对象。"""
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, isolation_level=None)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
     conn.execute("PRAGMA foreign_keys=ON")

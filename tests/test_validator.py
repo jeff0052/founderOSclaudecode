@@ -376,7 +376,7 @@ class TestValidateAttach:
         b = _make_node(node_id="b", parent_id="a", summary="b")
         store.insert_node(a)
         store.insert_node(b)
-        store.insert_edge("a", "b", "parent")
+        store.insert_edge("b", "a", "parent")  # child -> parent convention
 
         with pytest.raises(ValidationError) as exc_info:
             validate_attach(store, "a", "b")

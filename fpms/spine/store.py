@@ -83,6 +83,7 @@ class Store:
         self._conn = init_db(db_path)
         self._conn.row_factory = None  # ensure tuple rows
         self._events_path = events_path
+        self._in_transaction: bool = False
 
     # ---- internal helpers ----
 
@@ -98,6 +99,11 @@ class Store:
 
     def create_node(self, node: Node) -> Node:
         """插入新节点。自动生成 id/timestamps。原子写入 DB + events。"""
+        with self.transaction():
+            return self._create_node_inner(node)
+
+    def _create_node_inner(self, node: Node) -> Node:
+        """Internal: insert node, auto-add parent edge, write event."""
         now = _now_iso()
 
         # Generate ID with collision retry
@@ -143,8 +149,17 @@ class Store:
             ),
         )
 
+        # Auto-add parent edge if parent_id is set (child -> parent convention)
+        if node.parent_id:
+            self._conn.execute(
+                "INSERT OR IGNORE INTO edges (source_id, target_id, edge_type, created_at) VALUES (?,?,?,?)",
+                (node.id, node.parent_id, "parent", now),
+            )
+
         self.write_event({
             "type": "node_created",
+            "tool_name": "create_node",
+            "event_type": "node_created",
             "node_id": node.id,
             "title": node.title,
             "node_type": node.node_type,
@@ -165,6 +180,11 @@ class Store:
 
     def update_node(self, node_id: str, fields: dict) -> Node:
         """更新节点指定字段。自动更新 updated_at。原子写入 DB + events。"""
+        with self.transaction():
+            return self._update_node_inner(node_id, fields)
+
+    def _update_node_inner(self, node_id: str, fields: dict) -> Node:
+        """Internal: update node fields and write event."""
         now = _now_iso()
         fields["updated_at"] = now
 
@@ -190,6 +210,8 @@ class Store:
 
         self.write_event({
             "type": "node_updated",
+            "tool_name": "update_node",
+            "event_type": "node_updated",
             "node_id": node_id,
             "fields": list(fields.keys()),
             "timestamp": now,
@@ -243,17 +265,24 @@ class Store:
 
     def add_edge(self, edge: Edge) -> Edge:
         """添加边。原子写入 DB + events。"""
+        with self.transaction():
+            return self._add_edge_inner(edge)
+
+    def _add_edge_inner(self, edge: Edge) -> Edge:
+        """Internal: insert edge and write event."""
         now = _now_iso()
         if not edge.created_at:
             edge.created_at = now
 
         self._conn.execute(
-            "INSERT INTO edges (source_id, target_id, edge_type, created_at) VALUES (?,?,?,?)",
+            "INSERT OR IGNORE INTO edges (source_id, target_id, edge_type, created_at) VALUES (?,?,?,?)",
             (edge.source_id, edge.target_id, edge.edge_type, edge.created_at),
         )
 
         self.write_event({
             "type": "edge_added",
+            "tool_name": "add_edge",
+            "event_type": "edge_added",
             "source_id": edge.source_id,
             "target_id": edge.target_id,
             "edge_type": edge.edge_type,
@@ -407,7 +436,12 @@ class Store:
 
     @contextmanager
     def transaction(self) -> Generator[None, None, None]:
-        """事务上下文管理器。"""
+        """事务上下文管理器。支持嵌套（re-entrant）：内层不开新事务。"""
+        if self._in_transaction:
+            # Already inside a transaction — just yield without nesting
+            yield
+            return
+        self._in_transaction = True
         self._conn.execute("BEGIN IMMEDIATE")
         try:
             yield
@@ -415,6 +449,8 @@ class Store:
         except BaseException:
             self._conn.rollback()
             raise
+        finally:
+            self._in_transaction = False
 
     # --- Audit Outbox ---
 
