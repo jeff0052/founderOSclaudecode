@@ -1,19 +1,20 @@
-# PRD V2: FounderOS 认知引擎
+# PRD: FounderOS 认知引擎
 
-*从独立系统到跨工具认知层 — 只做 GitHub/Notion/Telegram 做不了的事*
+*跨工具认知层 — 只做 GitHub/Notion/Telegram 做不了的事*
 
 ---
 
-## 1. V1 → V2 的核心转变
+## 1. 核心定位
 
-| | V1 | V2 |
-|--|----|----|
-| **定位** | 独立的项目管理系统 | 跨工具的认知引擎 |
-| **数据存储** | 自建 SQLite + MD | 数据留在外部工具，只存认知层独有的数据 |
-| **任务管理** | 自己实现状态机、看板 | GitHub Projects / Notion 负责，FounderOS 读取 |
-| **文档** | 自己存 narrative MD | Notion 负责文档，FounderOS 只存压缩摘要和因果链 |
-| **沟通** | Telegram Bot 是入口 | 不变，Telegram 仍是主交互入口 |
-| **价值** | 全栈替代 | 做胶水和大脑 — 连接、理解、记忆、提醒 |
+FounderOS 不是项目管理工具，是**跨工具的认知引擎**。
+
+| 维度 | 说明 |
+|------|------|
+| **定位** | 跨工具的认知引擎 — 连接、理解、记忆、提醒 |
+| **数据存储** | 数据留在外部工具，FounderOS 只存认知层独有的数据（因果链、依赖关系、压缩摘要） |
+| **任务管理** | GitHub Projects / Notion 负责，FounderOS 读取并映射状态 |
+| **文档** | Notion 负责文档，FounderOS 只存压缩摘要和因果链 |
+| **沟通** | Telegram Bot 是主交互入口 |
 
 ---
 
@@ -86,7 +87,7 @@
 
 ## 4. 节点模型变化
 
-V1 的节点是自建的，所有字段自己存。V2 的节点变成**指针 + 认知层独有数据**。
+节点不是自建的独立数据，而是**指针 + 认知层独有数据**。
 
 ### 4.1 节点结构
 
@@ -207,7 +208,7 @@ Adapter 接口:
 
 ## 7. Context 组装变化
 
-V1 的 context 全部从本地存储装载。V2 的 context 需要**跨源组装**。
+Context 需要**跨源组装** — 从本地认知层 + 外部工具同时拉取。
 
 ### 7.1 装载流程
 
@@ -223,7 +224,7 @@ Step 5: 按 context 组成规则组装 Context Bundle
 
 ### 7.2 Token 预算不变
 
-组装规则和裁剪铁律与 V1 相同（lifecycle v1.1 §2）。跨源不影响 token 预算。
+组装规则和裁剪铁律不变（lifecycle §2）。跨源不影响 token 预算。
 
 ### 7.3 离线降级
 
@@ -250,54 +251,24 @@ Step 5: 按 context 组成规则组装 Context Bundle
 
 ---
 
-## 9. V1 功能在 V2 中的保留与变化
-
-| V1 功能 | V2 状态 | 变化 |
-|---------|---------|------|
-| 状态机（5 状态） | **保留** | 但 status 的 source of truth 变成外部工具，FounderOS 做映射 |
-| Risk marks | **保留** | 基于映射后的状态计算，逻辑不变 |
-| Rollup | **保留** | 基于认知层的 parent_id 冒泡，不依赖外部工具的层级 |
-| Context 生命周期 | **保留** | 装载增加跨源拉取步骤 |
-| 校验机制 | **保留** | 不变 |
-| 压缩 | **保留** | 不变 |
-| Heartbeat | **扩展** | 增加 Adapter 同步触发 |
-| 14 Tool 接口 | **调整** | create_node 增加 source/source_id 参数，其他逻辑不变 |
-| Archive | **保留** | 不变 |
-
----
-
-## 10. 与 V1 文档的关系
-
-| V1 文档 | V2 关系 |
-|---------|---------|
-| PRD-functional-v4 | V2 继承所有 FR，仅修改 FR-1（节点模型）和 FR-11（工具接口） |
-| PRD-context-lifecycle-v1.1 | V2 完全继承，装载步骤增加跨源拉取 |
-| PRD-compression-spec-v1 | V2 完全继承，不变 |
-| ARCHITECTURE | V2 新增连接层，认知层架构不变 |
-| INTERFACES | V2 新增 Adapter 接口，其他不变 |
-
----
-
-## 11. 实施路径
+## 9. 实施路径
 
 ```
-Phase 0: V1 standalone 先做完（当前计划不变）
+M1: 核心引擎 + GitHub Adapter
+  - 脊髓引擎（状态机、DAG、rollup、压缩）
+  - 节点模型含 source/source_id（从第一天就支持）
+  - GitHub Adapter: sync_node / list_updates
+  - Context 装载支持跨源拉取
   ↓
-Phase 1: GitHub Adapter
-  - 实现 sync_node / list_updates
-  - 节点模型增加 source/source_id
-  - Context 装载增加跨源拉取
-  ↓
-Phase 2: Notion Adapter
-  - 实现 sync_node / list_updates
-  - 状态映射配置
-  ↓
-Phase 3: 跨源 Heartbeat
-  - 同步触发
+M2: Notion Adapter + 跨源 Heartbeat
+  - Notion Adapter: sync_node / list_updates
+  - Heartbeat 同步触发
   - 跨源 rollup
   ↓
-Phase 4: 退出上报写回外部
-  - write_comment 到 GitHub/Notion
+M3: 写回外部 + 完善
+  - write_comment 到 GitHub/Notion（退出上报）
+  - 状态映射配置化
+  - 离线降级完善
 ```
 
 ---
@@ -306,4 +277,5 @@ Phase 4: 退出上报写回外部
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
-| 2026-03-20 | v1 | 初版：从独立系统到认知引擎的转变，Adapter 架构，节点指针模型 |
+| 2026-03-20 | v1 | 初版：认知引擎定位，Adapter 架构，节点指针模型 |
+| 2026-03-20 | v1.1 | 去掉 V1/V2 分阶段，直接集成模式。更新实施路径为 M1/M2/M3 |

@@ -9,7 +9,7 @@
 | 术语 | 定义 | 首次出现 |
 |------|------|---------|
 | **FounderOS** | 一人公司操作系统。Founder 提供 Vision + Judgment，AI 提供 Execution，FounderOS 提供 Control | WhitePaper |
-| **FPMS** | Focal Point Memory System，焦点记忆项目管理引擎。State 层的物理实现，管理任务状态、依赖、层级关系 | PRD-functional |
+| **认知引擎（FPMS）** | Focal Point Memory System，跨工具认知引擎。连接外部工具（GitHub/Notion/Telegram），只做它们做不了的事：跨工具因果链、Context 组装、跨时间记忆、主动校验、全局健康感知 | PRD-cognitive-engine |
 | **Office** | Agent 角色单位。每个 Office 是一个专职 Agent（如 CTO、Operations），有独立 workspace | OVERVIEW |
 | **Founder** | 系统的唯一人类决策者（Jeff）。不是 Office，是 Decision 层 | OVERVIEW |
 
@@ -21,8 +21,9 @@
 | **Context Bundle（认知包）** | 脊髓引擎为当前焦点任务组装的完整工作台。包含自身骨架 + 向上目标 + 向下进展 + 横向依赖 + 历史决策 | PRD-context-lifecycle §2 |
 | **脊髓引擎（Spine Engine）** | 底层确定性代码，负责 context 组装、状态计算、rollup、DAG 校验等。对应人类"小脑"——不需要 LLM 参与的自动化协调 | PRD-philosophy |
 | **眼球模型（Foveal Model）** | 多分辨率 context 加载策略。焦点=中央凹（全量），近景=周边视觉（摘要），全局=背景大盘（一句话状态） | PRD-philosophy |
-| **Focus（焦点）** | 当前 Agent 深度关注的唯一任务节点。加载 100% 全量 context | PRD-functional FR-7 |
-| **Saccade（扫视）** | 焦点切换动作。类比人眼的快速扫视运动 | PRD-functional FR-7 |
+| **Focus（焦点）** | 注意力决策层：决定**装什么**（WHAT）。当前 Agent 深度关注的唯一任务节点，是 Context Management 的核心输入。Focus 决定 L1/L2 装什么内容，但 L0/L_Alert/压缩等不依赖 Focus | PRD-functional FR-9 |
+| **Context Management（上下文管理）** | 上下文执行层：决定**怎么装**（HOW）。包括 Bundle 组装、token 裁剪、压缩、生命周期管理（entry check → mid-flight → commit → exit report）。Focus 是它的核心输入，但不是全部 | PRD-context-lifecycle |
+| **Saccade（扫视）** | 焦点切换动作。类比人眼的快速扫视运动 | PRD-functional FR-9 |
 
 ## 分辨率层级
 
@@ -38,7 +39,7 @@
 | 术语 | 层级 | 定义 | 稳定性 |
 |------|------|------|--------|
 | **Constitution（宪法层）** | Layer 1 | 公司 Mission、原则、审批规则。对应人类末那识（稳定人格） | 最稳定，极少变更 |
-| **Fact（事实层）** | Layer 2 | 客观事实：状态、指标、事件。FPMS 实现了任务状态部分 | 随操作变更 |
+| **Fact（事实层）** | Layer 2 | 客观事实：状态、指标、事件。认知引擎实现了任务状态部分 | 随操作变更 |
 | **Judgment（判断层）** | Layer 3 | 对事实的解释：判断、评估、建议。必须附依据+置信度 | 可修正 |
 | **Office Memory（工作记忆层）** | Layer 4 | 各 Office 专属工作记忆。CTO workspace 是第一个实例 | 按 Office 隔离 |
 | **Narrative（叙事层）** | Layer 5 | 对外口径：投资人/合作方/监管。与 Fact 强隔离 | 按受众定制 |
@@ -48,7 +49,7 @@
 
 | 术语 | 定义 | 首次出现 |
 |------|------|---------|
-| **Node（节点）** | FPMS 的基本单元。统一 Schema，可以是 goal/project/task/signal 等任何粒度 | PRD-functional FR-1 |
+| **Node（节点）** | 认知引擎的基本单元。统一 Schema，可以是 goal/project/task/signal 等任何粒度 | PRD-functional FR-1 |
 | **DAG** | Directed Acyclic Graph，有向无环图。节点间的 parent-child 和 dependency 关系必须保持无环 | PRD-functional FR-1 |
 | **Edge（边）** | 节点间的关系。类型包括 parent（层级）和 depends_on（依赖） | PRD-functional FR-1 |
 | **Rollup（冒泡）** | 子节点状态变更时自动向上重算父节点状态。是事务内的确定性计算，不读缓存 | PRD-functional FR-5 |
@@ -92,10 +93,10 @@
 
 | 术语 | 定义 | 首次出现 |
 |------|------|---------|
-| **Heartbeat（心跳）** | 系统定期扫描所有活跃节点，发现 blocked/at_risk/stale 并生成告警 | PRD-functional FR-9 |
-| **Anti-Amnesia（反遗忘）** | 防止任务被遗忘的机制。长时间未更新的节点触发提醒 | PRD-functional FR-9 |
+| **Heartbeat（心跳）** | 系统定期扫描所有活跃节点，发现 blocked/at_risk/stale 并生成告警 | PRD-functional FR-8 |
+| **Anti-Amnesia（反遗忘）** | 防止任务被遗忘的机制。长时间未更新的节点触发提醒 | PRD-functional FR-8 |
 | **Stash（暂存区）** | 焦点被紧急打断时的临时保存区。LIFO，最多 2 个，超 24h 自动衰减 | PRD-context-lifecycle §5.2 |
-| **Tool Call** | LLM 通过 14 个标准化工具（MCP）与 FPMS 交互的唯一方式。LLM 不直接碰存储 | PRD-functional FR-11 |
+| **Tool Call** | LLM 通过 15 个标准化工具（MCP）与认知引擎交互的唯一方式。LLM 不直接碰存储 | PRD-functional FR-11 |
 | **Idempotency（幂等）** | 相同 command_id 重复调用返回相同结果，不产生重复数据 | PRD-functional FR-11 |
 | **Audit Outbox（审计发件箱）** | 所有写入操作的事件记录。与数据变更在同一事务内写入，保证一致性 | ARCHITECTURE |
 

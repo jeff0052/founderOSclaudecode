@@ -10,6 +10,7 @@ V4/
 ├── OVERVIEW.md            ← 项目全局状态（每轮迭代更新）
 ├── GLOSSARY.md            ← 术语表（所有专有概念的统一定义）
 ├── CHANGELOG.md           ← 变更日志（每轮迭代改了什么+为什么）
+├── SYSTEM-CONFIG.md       ← 系统参数配置（所有可调数值集中管理）
 │
 ├── 1-vision/              ← 为什么做，做什么
 │   ├── WhitePaper.md          愿景白皮书

@@ -290,7 +290,7 @@ Step 6: 如需 LLM Fallback，提交异步任务（不阻塞 Heartbeat）
 
 ### 5.3 频率控制
 
-- Heartbeat 默认周期：每小时一次
+- Heartbeat 默认周期：见 `SYSTEM-CONFIG.md` `heartbeat.interval`（当前值 15 分钟）
 - 压缩扫描随 Heartbeat 触发，但每个节点**24 小时内最多压缩一次**（防止反复压缩正在活跃更新的节点）
 - LLM Fallback 异步任务超时：60 秒。超时 → 丢弃，下轮重试
 

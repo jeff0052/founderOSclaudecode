@@ -64,7 +64,7 @@ State Update（状态更新）
 | 支付（发卡） | Active Cards, Monthly Volume |
 | 支付（跨境） | Corridor Count, Settlement Volume |
 
-**实现**: FPMS 看板（任务状态）+ 业务 KPI 仪表盘（未来）
+**实现**: 认知引擎看板（任务状态）+ 业务 KPI 仪表盘（未来）
 
 ---
 
@@ -179,7 +179,7 @@ mission:
   decision_level（L0/L1/L2/L3）
 ```
 
-**实现**: FPMS task 节点 + 依赖关系 + 风险标记
+**实现**: 认知引擎 task 节点 + 依赖关系 + 风险标记
 
 ---
 
@@ -220,7 +220,7 @@ Mission → Execution → Risk Detection → Adjustment → Mission Update
 
 | 检测频率 | 内容 |
 |---------|------|
-| 实时 | FPMS 风险标记（blocked/at-risk/stale） |
+| 实时 | 认知引擎风险标记（blocked/at-risk/stale） |
 | 分钟级 | Agent 健康度、Token 消耗异常 |
 | 小时级 | 业务指标偏离 |
 | 每日 | 全量 State 核对 |
@@ -230,7 +230,7 @@ Mission → Execution → Risk Detection → Adjustment → Mission Update
 
 ---
 
-## 四、Memory Architecture（五层记忆模型）
+## 四、Memory Architecture（六层记忆模型）
 
 FounderOS 的记忆不是"记住聊天内容"，是**公司的可计算记忆**。
 
@@ -257,7 +257,7 @@ Layer 6  Temporary       临时上下文（默认不入库）
 
 ## 五、Office 体系（执行层）
 
-每个 Office 是一个专职 AI Agent 角色，拥有独立记忆、遵守公司宪法、通过 FPMS 与 CEO 同步状态。
+每个 Office 是一个专职 AI Agent 角色，拥有独立记忆、遵守公司宪法、通过认知引擎与 CEO 同步状态。
 
 | Office | 职责 |
 |--------|------|
@@ -307,7 +307,7 @@ Layer 6  Temporary       临时上下文（默认不入库）
 │ Dashboard    │ (按 Impact 排序)          │
 │              │                          │
 │ KPI 指标     │ Signal → 解释 → 建议      │
-│ FPMS 看板    │                          │
+│ 认知引擎看板  │                          │
 ├──────────────┼──────────────────────────┤
 │ Decisions    │ Missions                 │
 │ (本周 ≤3)    │ (按 Office 分组)          │
@@ -350,14 +350,14 @@ Founder 只做 L0/L1 决策。L2/L3 下放给 Office 和 Agent。系统不因等
 
 | 组件 | 状态 |
 |------|------|
-| FPMS（State 引擎） | ✅ v1 完成，494 测试，已接入 |
-| Memory Architecture | ✅ 五层设计完成 |
+| FPMS（认知引擎） | 🔧 v1 完成（494 测试），V4 认知引擎版本开发中（Adapter 集成 GitHub/Notion） |
+| Memory Architecture | ✅ 六层设计完成 |
 | CTO Agent（第一个 Office） | 📝 PRD V2 完成，待搭建 |
 | Signal 结构化 | ❌ 待建 |
 | Interpretation 层 | ❌ 待建 |
 | Decision 模板化 | ❌ 待建 |
 | Control 层 | ⚠️ CTO PRD 有部分定义 |
-| Stability / Kill Switch | ⚠️ FPMS 心跳覆盖部分 |
+| Stability / Kill Switch | ⚠️ 认知引擎心跳覆盖部分 |
 
 ---
 

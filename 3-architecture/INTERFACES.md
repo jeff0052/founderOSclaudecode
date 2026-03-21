@@ -1,4 +1,4 @@
-# FPMS Module Interface Contracts
+# 认知引擎 Module Interface Contracts
 
 每个模块暴露的公共函数签名。Coding agent 只需要看它依赖的上游接口，不需要看实现。
 
@@ -25,6 +25,10 @@ class CreateNodeInput(BaseModel):
     next_step: Optional[str] = None
     owner: Optional[str] = None
     deadline: Optional[str] = None
+    # 外部源指针（指向 GitHub Issue / Notion Page 等外部对象）
+    source: str = "internal"       # "github" | "notion" | "internal"
+    source_id: Optional[str] = None  # 外部工具对象 ID（如 "octocat/repo#42"）
+    source_url: Optional[str] = None # 外部工具链接
 
     @field_validator("node_type")
     @classmethod
@@ -95,6 +99,18 @@ class Node:
     updated_at: str = ""
     status_changed_at: str = ""
     archived_at: Optional[str] = None
+    # 外部源指针
+    source: str = "internal"           # "github" | "notion" | "internal"
+    source_id: Optional[str] = None    # 外部工具对象 ID
+    source_url: Optional[str] = None   # 外部工具链接
+    source_synced_at: Optional[str] = None  # 最后同步时间
+    source_deleted: bool = False             # 外部源已删除标记
+    # 压缩控制
+    needs_compression: bool = False          # 叙事超长，待压缩
+    compression_in_progress: bool = False    # 压缩任务进行中（防并发）
+    no_llm_compression: bool = False         # 禁止 LLM 压缩（仅规则压缩）
+    # 标签
+    tags: list[str] = field(default_factory=list)  # FounderOS 级标签
 
 @dataclass
 class Edge:
@@ -167,7 +183,7 @@ class Store:
     def list_nodes(self, filters: dict | None = None,
                    order_by: str = "updated_at",
                    limit: int = 50, offset: int = 0) -> list[Node]:
-        """条件查询节点列表。filters 支持 status/node_type/parent_id/is_root/archived。"""
+        """条件查询节点列表。filters 支持 status/node_type/parent_id/is_root/archived/source。"""
 
     # --- Edge CRUD ---
     def add_edge(self, edge: Edge) -> Edge:
@@ -513,6 +529,9 @@ class ToolHandler:
     # --- Read Tools ---
     def handle_get_node(self, params: dict) -> ToolResult: ...
     def handle_search_nodes(self, params: dict) -> ToolResult: ...
+    def handle_get_assembly_trace(self, params: dict) -> ToolResult:
+        """查询最近的认知包组装轨迹（FR-10 可观测性）。params: {last_n: int}"""
+        ...
 ```
 
 ---
@@ -537,4 +556,67 @@ class SpineEngine:
 
     def bootstrap(self) -> ContextBundle:
         """冷启动。返回初始认知包。"""
+
+    def sync_source(self, node_id: str) -> Node:
+        """从外部工具同步单个节点的最新状态。"""
+
+    def sync_all(self, since: str | None = None) -> int:
+        """增量同步所有外部源节点。返回更新数量。"""
+```
+
+---
+
+## Adapter 接口 — 外部工具连接层
+
+每个 Adapter 实现统一接口，负责与一个外部工具通信。
+
+```python
+from abc import ABC, abstractmethod
+
+@dataclass
+class NodeSnapshot:
+    """外部工具对象的快照"""
+    source: str                    # "github" | "notion"
+    source_id: str                 # 外部对象 ID
+    source_url: str                # 外部链接
+    title: str
+    status: str                    # 外部原始状态
+    mapped_status: str             # 映射后的 FounderOS 状态
+    assignee: Optional[str] = None
+    updated_at: Optional[str] = None
+
+@dataclass
+class SourceEvent:
+    """外部工具的变更事件"""
+    source: str
+    source_id: str
+    event_type: str                # "status_change" | "comment" | "label" | "created" | "deleted"
+    timestamp: str
+    data: dict
+
+class BaseAdapter(ABC):
+    @abstractmethod
+    def sync_node(self, source_id: str) -> NodeSnapshot:
+        """拉取单个外部对象的最新状态。"""
+
+    @abstractmethod
+    def list_updates(self, since: str) -> list[SourceEvent]:
+        """拉取增量变更事件。since: ISO 8601 时间戳。"""
+
+    def write_comment(self, source_id: str, text: str) -> None:
+        """写入评论/备注到外部工具（可选实现）。"""
+        raise NotImplementedError
+
+    def search(self, query: str) -> list[NodeSnapshot]:
+        """搜索外部工具对象（可选实现）。"""
+        raise NotImplementedError
+
+
+class GitHubAdapter(BaseAdapter):
+    """GitHub Issues/Projects Adapter。
+    状态映射（可配置）：Open→active, Closed→done, Label:blocked→blocked"""
+
+class NotionAdapter(BaseAdapter):
+    """Notion Pages/Databases Adapter。
+    状态映射：Notion status property → FounderOS status"""
 ```

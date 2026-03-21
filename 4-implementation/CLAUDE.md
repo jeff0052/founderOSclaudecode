@@ -50,6 +50,21 @@ updated_at: str   # system-managed
 status_changed_at: str  # system-managed
 archived_at: str? # system-managed
 is_persistent: bool  # archive exemption
+
+# External source pointer (GitHub Issue / Notion Page etc.)
+source: str = "internal"     # "github" | "notion" | "internal"
+source_id: str?              # external object ID (e.g. "octocat/repo#42")
+source_url: str?             # external link
+source_synced_at: str?       # last sync time
+source_deleted: bool = False # external source deleted
+
+# Compression control
+needs_compression: bool = False        # narrative too long, pending compression
+compression_in_progress: bool = False  # compression task running (prevent concurrency)
+no_llm_compression: bool = False       # forbid LLM compression (rules only)
+
+# Tags
+tags: list[str] = []  # FounderOS-level tags
 ```
 - Edges table: `source_id, target_id, edge_type` (parent|depends_on)
 - **is_root XOR parent_id** — enforced at DB level
@@ -97,7 +112,8 @@ attach_node, detach_node, append_log, unarchive, set_persistent
 shift_focus, expand_context
 
 ### Read-only Tools
-get_node, search_nodes (supports parent_id filter, pagination limit/offset)
+get_node, search_nodes (supports parent_id/source filter, pagination limit/offset),
+get_assembly_trace (query recent context assembly traces, FR-10 observability)
 
 ## Key Behaviors
 - **attach_node** on node with existing parent → atomic replace (detach old + attach new)

@@ -1,3 +1,13 @@
+> ⚠️ **已废弃 (DEPRECATED)** — 本文档为 V3.1 时期的架构设计，已被以下文档取代：
+> - 节点模型 & 认知引擎：`2-requirements/PRD-cognitive-engine.md`
+> - 功能需求 & 状态机：`2-requirements/PRD-functional.md`
+> - 模块接口：`3-architecture/INTERFACES.md`
+> - 系统参数：`SYSTEM-CONFIG.md`
+>
+> **关键差异**：本文档使用 `{active, waiting, blocked, done, dropped}` 状态集（无 inbox、blocked 是状态而非风险标记），与当前设计 `{inbox, active, waiting, done, dropped}` 冲突。本文档不包含认知引擎（Adapter、外部源指针、跨工具因果链）等核心概念。
+>
+> 保留此文件仅作历史参考，**请勿作为开发依据**。
+
 # FPMS 分形项目管理系统 — 技术架构文档 V3.1
 
 **版本**: V3.1 | **日期**: 2026-03-15  
