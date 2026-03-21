@@ -158,3 +158,85 @@ class ContextBundle:
     l2_focus: str
     total_tokens: int
     focus_node_id: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Cognitive Layer Dataclasses (v1)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class RiskMarks:
+    blocked: bool = False
+    at_risk: bool = False
+    stale: bool = False
+    blocked_by: list[str] = field(default_factory=list)
+    deadline_hours: float | None = None
+
+
+@dataclass
+class RollupResult:
+    node_id: str
+    rollup_status: str  # inbox|active|waiting|done|dropped
+    has_risk_children: bool = False
+    risk_summary: list[str] = field(default_factory=list)
+
+
+@dataclass
+class FocusState:
+    primary: str | None = None
+    secondary: list[str] = field(default_factory=list)
+    stash: list[dict] = field(default_factory=list)  # [{node_id, stashed_at, reason}]
+    last_touched: dict[str, str] = field(default_factory=dict)  # node_id → ISO timestamp
+
+
+@dataclass
+class HeartbeatAlert:
+    alert_type: str  # urgent_deadline|critical_blocked|deadline_warning|stale_warning|inbox_stale
+    severity: int    # 1=highest, 5=lowest
+    node_id: str
+    message: str
+    suggested_action: str
+
+
+@dataclass
+class DedupeRecord:
+    alert_type: str
+    node_id: str
+    last_pushed_at: str   # ISO timestamp
+    last_acted_at: str    # ISO timestamp — reset ONLY on substantive action
+
+
+@dataclass
+class HeartbeatResult:
+    alerts: list[HeartbeatAlert] = field(default_factory=list)
+    focus_candidates: list[str] = field(default_factory=list)
+    archive_candidates: list[str] = field(default_factory=list)
+    nodes_scanned: int = 0
+
+
+# ---------------------------------------------------------------------------
+# Adapter Data Structures (M1)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class NodeSnapshot:
+    """External source snapshot — returned by Adapter.sync_node()."""
+    source: str            # "github" | "notion"
+    source_id: str         # external object ID (e.g. "octocat/repo#42")
+    title: str
+    status: str            # mapped to FounderOS status
+    source_url: str | None = None
+    assignee: str | None = None
+    updated_at: str | None = None  # ISO 8601
+    labels: list[str] = field(default_factory=list)
+    raw: dict = field(default_factory=dict)  # full API response for extensibility
+
+
+@dataclass
+class SourceEvent:
+    """External source event — returned by Adapter.list_updates()."""
+    source: str
+    source_id: str
+    event_type: str        # "status_change" | "comment" | "label_change" | "assigned" | "deleted"
+    timestamp: str         # ISO 8601
+    data: dict = field(default_factory=dict)

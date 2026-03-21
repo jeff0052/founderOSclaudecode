@@ -330,6 +330,13 @@ class Store:
 
     # --- Graph Queries ---
 
+    def get_children_all(self, node_id: str) -> List[Node]:
+        """获取全部子节点（含已归档），用于 rollup 计算。"""
+        cols = self._node_columns()
+        sql = "SELECT * FROM nodes WHERE parent_id=?"
+        rows = self._conn.execute(sql, (node_id,)).fetchall()
+        return [_row_to_node(r, cols) for r in rows]
+
     def get_children(self, node_id: str, include_archived: bool = False) -> List[Node]:
         """获取直接子节点。"""
         cols = self._node_columns()
