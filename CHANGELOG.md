@@ -4,6 +4,95 @@
 
 ---
 
+## 2026-03-22 — MCP Server 实现
+
+### 新增模块
+
+| 模块 | 位置 | 内容 |
+|------|------|------|
+| MCP Server | fpms/mcp_server.py | FastMCP 封装，18 tools（15 SpineEngine + heartbeat/bootstrap/get_context_bundle），stdio transport |
+
+### 新增测试
+
+| 测试文件 | 内容 |
+|----------|------|
+| tests/test_mcp_server.py | 7 tests — tool 注册验证、系统工具、错误处理、E2E 全流程 |
+
+### 关键设计决策
+
+1. **FastMCP 装饰器模式** — 每个 SpineEngine tool 对应一个 `@mcp.tool()` 函数，类型安全
+2. **`_safe_tool` 装饰器** — 所有 tool 函数自动 catch 异常，返回结构化错误 JSON，不会崩溃 MCP server
+3. **Engine 懒加载单例** — `_get_engine()` 避免 import-time 副作用，环境变量配置数据路径
+4. **search_nodes 的 filters 为 JSON string** — MCP tool 参数必须是简单类型，服务端解析并校验
+
+### 文档更新
+
+| 文档 | 变更 |
+|------|------|
+| USAGE-GUIDE.md | §4.2 重写：MCP Server 启动方式、环境变量、Claude Desktop/Code/OpenClaw 配置示例 |
+| CHANGELOG.md | 补充 MCP Server 记录 |
+
+### 测试
+
+- 新增 7 MCP tests
+- 总计 567 tests 全绿
+
+---
+
+## 2026-03-21 — 产品使用指南 + 文档更新
+
+### 新增文档
+
+| 文档 | 位置 | 内容 |
+|------|------|------|
+| USAGE-GUIDE.md | docs/ | 完整产品使用指南：用途、核心概念、适用场景、使用方式（Python API / MCP / OpenClaw）、注意事项、当前限制 |
+
+### 文档更新
+
+| 文档 | 变更 |
+|------|------|
+| README.md | 重写为产品导向：新增快速开始、当前状态、架构简图、使用指南链接 |
+| CHANGELOG.md | 补充本次文档更新记录 |
+
+---
+
+## 2026-03-21 — M1 GitHub 集成完成
+
+### 新增模块
+
+| 模块 | 位置 | 内容 |
+|------|------|------|
+| BaseAdapter ABC | fpms/spine/adapters/base.py | 统一 Adapter 接口（sync_node/list_updates/write_comment/search） |
+| AdapterRegistry | fpms/spine/adapters/registry.py | Adapter 注册/发现/生命周期管理 |
+| GitHubAdapter | fpms/spine/adapters/github_adapter.py | GitHub Issues/PRs 同步（httpx, 状态映射, source_id 解析） |
+| NodeSnapshot | fpms/spine/models.py | 外部源快照数据结构 |
+| SourceEvent | fpms/spine/models.py | 外部源事件数据结构 |
+
+### 修改模块
+
+| 模块 | 变更 |
+|------|------|
+| BundleAssembler | L2 装载时跨源同步 + 离线降级 + Assembly Trace 含 sync_status |
+| SpineEngine | sync_source/sync_all 实现 + set_adapter_registry |
+
+### 关键设计决策
+
+1. **M1 只做 sync_node 拉取，list_updates 事件处理延迟到 M2**
+   - 一人公司规模小，按需同步足够，事件驱动在 Heartbeat 里统一处理更干净
+
+2. **离线降级：adapter 失败不阻塞，用缓存 + 标注"数据可能过时"**
+   - 保证 Agent 永远能工作，哪怕外部 API 不可用
+
+3. **assignee → owner 字段映射**
+   - PRD §4.2 要求 title/status/assignee 从外部同步，assignee 对应 Node.owner
+
+### 测试
+
+- 新增 50 tests（adapter_base 11 + registry 6 + github_adapter 17 + bundle_cross_source 7 + m1_e2e 9）
+- 总计 560 tests 全绿
+
+---
+
 ## 2026-03-20 — 需求深化迭代
 
 ### 新增文档

@@ -163,3 +163,4 @@ v0 (Store/DAG/Tools)
 | 日期 | 版本 | 变更 |
 |------|------|------|
 | 2026-03-20 | v1 | 初版：v0 → v1 → M1 → M2 → M3 五阶段 Roadmap |
+| 2026-03-21 | v2 | M1 完成：GitHub Adapter + 跨源 Context 装载 + 离线降级（560 tests） |
