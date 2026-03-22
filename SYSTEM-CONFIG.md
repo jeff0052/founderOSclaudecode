@@ -127,6 +127,31 @@
 | `model.token_estimate_en` | 1.3 | tokens/word | 英文 token 估算系数 | |
 | `model.token_estimate_zh` | 2.0 | tokens/char | 中文 token 估算系数 | |
 
+## 10. Token Efficiency
+
+*核心衡量标准。在真实项目中追踪，用数据驱动优化。对标 OpenViking 的 80% token 削减。*
+
+| 参数 | 当前值 | 单位 | 说明 | 备注 |
+|------|--------|------|------|------|
+| `token_efficiency.injection_target` | 4,000 | tokens | 单次 context 注入的目标上限 | 当前实际 ~8,000-10,000，需优化 |
+| `token_efficiency.utilization_target` | 0.6 | ratio | 注入的 context 中 AI 实际引用的比例目标 | ≥60% 才算高效 |
+| `token_efficiency.track_per_task` | true | bool | 是否追踪每个 task 的 token 消耗 | 复盘用 |
+
+**待追踪指标（需真实项目数据）：**
+
+| 指标 | 定义 | 当前状态 |
+|------|------|---------|
+| `context_injection_tokens` | 每次 bootstrap/workbench/get_context_bundle 注入多少 token | 未量化 |
+| `context_utilization_rate` | AI 输出中引用了注入 context 的比例 | 未量化 |
+| `tokens_per_task_completion` | 完成一个 task 从 active → done 平均消耗多少 token | 未量化 |
+| `wasted_context_ratio` | 注入但未被 AI 使用的 context 比例 | 未量化 |
+
+**优化方向（待验证后实施）：**
+1. 按需加载替代全量推送
+2. 对话内容压缩后再存储
+3. Assembly Trace 追踪 context 命中率
+4. L1 邻居按相关性排序而非全量加载
+
 ---
 
 ## 变更记录
@@ -139,3 +164,4 @@
 | 2026-03-22 | `role budgets` | - | §1b | v0.3: 新增角色 token 预算分配 |
 | 2026-03-22 | `narrative categories` | - | §1c | v0.3: 新增叙事分类 + 角色可见性 |
 | 2026-03-22 | `sansei.*` | - | §1d | v0.3: 新增三省 Protocol 参数 |
+| 2026-03-22 | `token_efficiency.*` | - | §10 | v0.3.2: 新增 token 效率指标体系，待真实项目数据验证 |
