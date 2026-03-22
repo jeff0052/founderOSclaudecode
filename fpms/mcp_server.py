@@ -224,6 +224,7 @@ def append_log(
     node_id: str,
     content: str = "",
     event_type: str = "log",
+    category: str = "general",
 ) -> str:
     """Append a log entry to a node's narrative. Does NOT reset Anti-Amnesia timer.
 
@@ -231,9 +232,11 @@ def append_log(
         node_id: Target node ID
         content: Log content text
         event_type: Event type label (default: "log")
+        category: Log category — decision|feedback|risk|technical|progress|general (default: "general")
     """
     return _result_to_str(_get_engine().execute_tool("append_log", {
         "node_id": node_id, "content": content, "event_type": event_type,
+        "category": category,
     }))
 
 
@@ -319,6 +322,7 @@ def search_nodes(
     limit: int = 50,
     offset: int = 0,
     include_summary: bool = False,
+    query: Optional[str] = None,
 ) -> str:
     """Search nodes with filters.
 
@@ -327,15 +331,19 @@ def search_nodes(
         limit: Max results (default 50)
         offset: Pagination offset
         include_summary: Include summary field in results
+        query: Full-text search query (searches titles + narratives + knowledge)
     """
     try:
         parsed_filters = json.loads(filters) if filters else {}
     except json.JSONDecodeError as e:
         return json.dumps({"success": False, "error": f"Invalid filters JSON: {e}"}, ensure_ascii=False)
-    return _result_to_str(_get_engine().execute_tool("search_nodes", {
+    params = {
         "filters": parsed_filters, "limit": limit, "offset": offset,
         "include_summary": include_summary,
-    }))
+    }
+    if query:
+        params["query"] = query
+    return _result_to_str(_get_engine().execute_tool("search_nodes", params))
 
 
 @mcp.tool()
@@ -376,7 +384,7 @@ def bootstrap() -> str:
 
 @mcp.tool()
 @_safe_tool
-def get_context_bundle(focus_node_id: Optional[str] = None) -> str:
+def get_context_bundle(focus_node_id: Optional[str] = None, role: str = "all") -> str:
     """Assemble the current cognitive context bundle (4 layers).
 
     Returns L0 (global dashboard), L_Alert (top 3 alerts),
@@ -384,9 +392,76 @@ def get_context_bundle(focus_node_id: Optional[str] = None) -> str:
 
     Args:
         focus_node_id: Optional node ID to shift focus to before assembly
+        role: Context role filter — strategy|review|execution|all (default: all)
     """
-    bundle = _get_engine().get_context_bundle(user_focus=focus_node_id)
+    bundle = _get_engine().get_context_bundle(user_focus=focus_node_id, role=role)
     return json.dumps(asdict(bundle), ensure_ascii=False, default=str)
+
+
+# =====================================================================
+# Workbench + Knowledge Tools (3)
+# =====================================================================
+
+
+@mcp.tool()
+@_safe_tool
+def activate_workbench(
+    node_id: str,
+    role: str = "execution",
+) -> str:
+    """Activate the AI workbench for a task — prepare the working context.
+
+    Returns goal, role-filtered context, subtasks (dependency-sorted),
+    suggested next step, role prompt, and token budget.
+
+    Args:
+        node_id: The task/node to prepare the workbench for
+        role: Context role — strategy|review|execution (default: execution)
+    """
+    wb = _get_engine().activate_workbench(node_id, role=role)
+    return json.dumps(wb, ensure_ascii=False, default=str)
+
+
+@mcp.tool()
+@_safe_tool
+def set_knowledge(node_id: str, doc_type: str, content: str) -> str:
+    """Set a knowledge document for a node.
+
+    Args:
+        node_id: Target node ID
+        doc_type: Document type (overview|requirements|architecture|custom)
+        content: Markdown content
+    """
+    from fpms.spine import knowledge as knowledge_mod
+    engine = _get_engine()
+    node = engine.store.get_node(node_id)
+    if node is None:
+        return json.dumps({"success": False, "error": f"Node '{node_id}' not found"})
+    knowledge_mod.set_knowledge(engine._knowledge_dir, node_id, doc_type, content)
+    return json.dumps({"success": True, "node_id": node_id, "doc_type": doc_type})
+
+
+@mcp.tool()
+@_safe_tool
+def get_knowledge(
+    node_id: str,
+    doc_type: Optional[str] = None,
+    inherit: bool = True,
+) -> str:
+    """Get knowledge documents for a node (with optional parent inheritance).
+
+    Args:
+        node_id: Target node ID
+        doc_type: Specific doc type (None = return all)
+        inherit: Walk up parent chain for missing docs (default: True)
+    """
+    from fpms.spine import knowledge as knowledge_mod
+    engine = _get_engine()
+    result = knowledge_mod.get_knowledge(
+        engine._knowledge_dir, node_id, doc_type=doc_type,
+        store=engine.store, inherit=inherit,
+    )
+    return json.dumps({"success": True, "knowledge": result}, ensure_ascii=False)
 
 
 # =====================================================================
