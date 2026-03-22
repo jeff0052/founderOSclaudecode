@@ -339,6 +339,77 @@ class SpineEngine:
             update_fields["owner"] = snapshot.assignee
         return self._store.update_node(node_id, update_fields)
 
+    def sansei_review(
+        self,
+        node_id: str,
+        proposal: str,
+        review_verdict: dict | None = None,
+        engineer_verdict: dict | None = None,
+    ) -> dict:
+        """三省 Protocol: parallel review by 门下省 + 尚书省.
+
+        Args:
+            node_id: Node being reviewed
+            proposal: The proposal text from 中书省
+            review_verdict: {approved: bool, reason: str} from 门下省
+            engineer_verdict: {approved: bool, reason: str} from 尚书省
+
+        Returns dict with:
+            approved, review_verdict, engineer_verdict, rejection_count, escalate_to_human
+        """
+        from datetime import datetime, timezone
+
+        node = self._store.get_node(node_id)
+        if node is None:
+            raise ValueError(f"Node '{node_id}' not found")
+
+        # Get/update rejection count from session state
+        review_state = self._store.get_session(f"sansei_{node_id}") or {"rejection_count": 0}
+        rejection_count = review_state["rejection_count"]
+
+        # Default verdicts
+        if review_verdict is None:
+            review_verdict = {"approved": True, "reason": "No issues found"}
+        if engineer_verdict is None:
+            engineer_verdict = {"approved": True, "reason": "Feasible"}
+
+        approved = review_verdict["approved"] and engineer_verdict["approved"]
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        if not approved:
+            rejection_count += 1
+            if not review_verdict["approved"]:
+                self._narrative_mod.append_narrative(
+                    self._narratives_dir, node_id, now, "review_rejected",
+                    f"门下省打回: {review_verdict['reason']}", category="risk",
+                )
+            if not engineer_verdict["approved"]:
+                self._narrative_mod.append_narrative(
+                    self._narratives_dir, node_id, now, "engineer_rejected",
+                    f"尚书省打回: {engineer_verdict['reason']}", category="technical",
+                )
+        else:
+            self._narrative_mod.append_narrative(
+                self._narratives_dir, node_id, now, "review_approved",
+                f"三省审查通过: {proposal[:100]}", category="decision",
+            )
+
+        # Persist rejection count
+        with self._store.transaction():
+            self._store.set_session(f"sansei_{node_id}", {"rejection_count": rejection_count})
+
+        escalate = rejection_count > 3
+
+        return {
+            "approved": approved,
+            "review_verdict": review_verdict,
+            "engineer_verdict": engineer_verdict,
+            "rejection_count": rejection_count,
+            "escalate_to_human": escalate,
+            "proposal": proposal,
+        }
+
     def sync_all(self, since: str | None = None) -> int:
         """Sync all external-source nodes. Returns count of synced nodes."""
         if self._adapter_registry is None:
