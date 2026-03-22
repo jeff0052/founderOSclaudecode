@@ -104,16 +104,16 @@ v0.4+
 | 真实写回验证 | ✅ |
 | 状态映射配置化 | ⏳ 延后（硬编码够用） |
 | 离线降级完善 | ⏳ 延后 |
-| Token budget 优化 | ⏳ 合并到 v0.3 |
+| Token budget 优化 | ✅ 已在 v0.3 完成（role budgets） |
 | Assembly Trace 完善 | ⏳ 延后 |
 
 ### MCP Server + 发布 ✅
 
 | 交付物 | 状态 |
 |--------|------|
-| MCP Server 18 tools（FastMCP） | ✅ |
+| MCP Server 22 tools（FastMCP） | ✅ |
 | Claude Desktop 接入 | ✅ |
-| PyPI 发布（`pip install focalpoint`） | ✅ v0.2.0 |
+| PyPI 发布（`pip install focalpoint`） | ✅ v0.3.1 |
 | ClawHub 发布 | ✅ |
 
 ---
@@ -137,9 +137,12 @@ Milestone 总结：`docs/milestones/2026-03-22-v03-work-mode-complete.md`
 | **全文搜索** — SQLite FTS5 | ✅ |
 | **角色 prompt** — strategy/review/execution | ✅ |
 | **角色过滤** — bundle 按 role 过滤 narrative + token 预算 | ✅ |
-| **MCP tools** — 新增 3 个 + 更新 3 个（共 21 tools） | ✅ |
+| **MCP tools** — 新增 4 个 + 更新 3 个（共 22 tools） | ✅ |
+| **FTS 自动索引** — append_log/set_knowledge 自动更新搜索索引 | ✅ v0.3.1 |
+| **delete_knowledge** — 删除知识文档 MCP tool | ✅ v0.3.1 |
+| **查询清理** — FTS5/LIKE 特殊字符处理 + 日志记录 | ✅ v0.3.1 |
 
-验收：657 tests 全绿（原 584 + 新 73）。v0.3.0 版本。
+验收：665 tests 全绿。v0.3.1 版本。
 
 ---
 
@@ -203,3 +206,4 @@ v0 (Store/DAG/Tools) ✅
 | 2026-03-21 | v2 | M1 完成（560 tests） |
 | 2026-03-22 | v3 | 产品方向升级为 AI 认知操作系统。新增第二层（v0.3 Work Mode）和第三层（v0.4+ 多 Agent）。M2/M3 部分交付，剩余延后。 |
 | 2026-03-22 | v4 | v0.3 Work Mode 开发完成。657 tests。下一步：v0.4 多 Agent 协作。 |
+| 2026-03-22 | v5 | v0.3.1 hotfix：FTS 自动索引、delete_knowledge MCP tool、查询清理。665 tests。22 MCP tools。PyPI/ClawHub 已发布。 |
