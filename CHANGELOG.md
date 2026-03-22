@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-03-22 — FocalPoint v0.1.0 发布
+
+### 产品发布
+
+| 渠道 | 地址 | 安装方式 |
+|------|------|---------|
+| PyPI | pypi.org/project/focalpoint | `pip install focalpoint` |
+| ClawHub | focalpoint-memory | `clawhub install focalpoint-memory` |
+| GitHub | jeff0052/founderOSclaudecode | `git clone` |
+
+### 关键里程碑
+
+- **产品改名**: FPMS → FocalPoint（对外品牌名，代码内部保持 fpms）
+- **License**: MIT → BSL 1.1（防止竞品直接商用，4 年后转 Apache 2.0）
+- **GitHub 集成真实验证**: 用 `jeff0052/founderOSclaudecode` repo 的 3 个真实 issue 完成端到端同步测试
+- **README 重写**: 加入竞品对比（Mem0/Zep/Letta/OpenViking）、目标用户、5 个 use case
+- **Claude Desktop 接入验证**: MCP Server stdio transport 成功连接
+
+### 新增文件
+
+| 文件 | 内容 |
+|------|------|
+| pyproject.toml | Python 打包配置（hatchling） |
+| LICENSE | BSL 1.1 |
+| clawhub-skill/focalpoint-memory/SKILL.md | ClawHub skill 定义 |
+
+---
+
 ## 2026-03-22 — MCP Server 实现
 
 ### 新增模块
