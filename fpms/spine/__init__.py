@@ -52,6 +52,7 @@ class SpineEngine:
 
         self._store = Store(db_path, events_path)
         self._narratives_dir = narratives_dir
+        self._knowledge_dir = os.path.join(os.path.dirname(narratives_dir), "knowledge")
 
         # Core tool execution
         self._tool_handler = ToolHandler(
@@ -118,20 +119,160 @@ class SpineEngine:
             params["command_id"] = command_id
         return self._executor.execute(command_id, tool_name, params)
 
-    def get_context_bundle(self, user_focus: str | None = None) -> ContextBundle:
-        """获取当前认知包。可选指定焦点。"""
-        # If user supplied a focus, shift focus first
+    def get_context_bundle(self, user_focus: str | None = None, role: str = "all") -> ContextBundle:
+        """获取当前认知包。可选指定焦点和角色。"""
         if user_focus is not None:
             try:
                 state = self._focus_scheduler.shift_focus(user_focus)
                 focus_node_id = state.primary
             except ValueError:
-                # Invalid node — fall back to scheduler state
                 focus_node_id = self._focus_scheduler.get_state().primary
         else:
             focus_node_id = self._focus_scheduler.get_state().primary
 
-        return self._bundle_assembler.assemble(focus_node_id=focus_node_id)
+        return self._bundle_assembler.assemble(focus_node_id=focus_node_id, role=role)
+
+    def activate_workbench(self, node_id: str, role: str = "execution") -> dict:
+        """Activate the workbench — prepare AI working context. Stateless."""
+        from .bundle import _ROLE_BUDGETS
+        from . import knowledge as knowledge_mod
+
+        node = self._store.get_node(node_id)
+        if node is None:
+            raise ValueError(f"Node '{node_id}' not found")
+
+        # Role-filtered context bundle
+        bundle = self._bundle_assembler.assemble(focus_node_id=node_id, role=role)
+
+        # Assemble context text
+        context_parts = []
+        if bundle.l0_dashboard.strip():
+            context_parts.append(bundle.l0_dashboard)
+        if bundle.l_alert.strip() and "No alerts" not in bundle.l_alert:
+            context_parts.append(bundle.l_alert)
+        context_parts.append(bundle.l1_neighborhood)
+        context_parts.append(bundle.l2_focus)
+        context_text = "\n\n".join(context_parts)
+
+        # Knowledge docs (with inheritance)
+        knowledge = knowledge_mod.get_knowledge(
+            self._knowledge_dir, node_id, store=self._store, inherit=True,
+        )
+
+        # Subtasks sorted by dependency
+        children = self._store.get_children(node_id, include_archived=False)
+        subtasks = self._sort_subtasks_by_deps(children)
+
+        # Suggested next: first non-terminal subtask
+        suggested_next = None
+        for st in subtasks:
+            if st["status"] not in ("done", "dropped"):
+                suggested_next = {"id": st["id"], "title": st["title"]}
+                break
+
+        # Role-specific narrative extractions
+        decisions = self._extract_narrative_by_category(node_id, "decision")
+        risks = self._extract_narrative_by_category(node_id, "risk")
+
+        # Role prompt
+        role_prompt = self._load_role_prompt(role)
+
+        # Token budget
+        budget = _ROLE_BUDGETS.get(role, _ROLE_BUDGETS["all"])
+
+        result = {
+            "goal": node.title,
+            "knowledge": knowledge if isinstance(knowledge, dict) else {},
+            "context": context_text,
+            "subtasks": subtasks,
+            "suggested_next": suggested_next,
+            "role_prompt": role_prompt,
+            "token_budget": {
+                "total": budget["total"],
+                "l0": budget.get("l0") or 0,
+                "l1": budget.get("l1") or 0,
+                "l2": budget.get("l2") or 0,
+            },
+        }
+
+        # Add role-specific fields
+        if role == "strategy":
+            result["decisions"] = decisions
+        elif role == "review":
+            result["risks"] = risks
+
+        return result
+
+    def _sort_subtasks_by_deps(self, children: list) -> list:
+        """Topological sort of subtasks by dependency order (Kahn's algorithm)."""
+        if not children:
+            return []
+
+        child_ids = {c.id for c in children}
+        child_map = {c.id: c for c in children}
+
+        deps = {}
+        for c in children:
+            child_deps = self._store.get_dependencies(c.id)
+            deps[c.id] = {d.id for d in child_deps if d.id in child_ids}
+
+        in_degree = {cid: len(deps.get(cid, set())) for cid in child_ids}
+        queue = sorted(cid for cid in child_ids if in_degree[cid] == 0)
+        sorted_ids = []
+
+        while queue:
+            current = queue.pop(0)
+            sorted_ids.append(current)
+            for cid in child_ids:
+                if current in deps.get(cid, set()):
+                    in_degree[cid] -= 1
+                    if in_degree[cid] == 0:
+                        queue.append(cid)
+            queue.sort()
+
+        for cid in child_ids:
+            if cid not in sorted_ids:
+                sorted_ids.append(cid)
+
+        return [
+            {"id": child_map[cid].id, "title": child_map[cid].title,
+             "status": child_map[cid].status, "summary": child_map[cid].summary}
+            for cid in sorted_ids
+        ]
+
+    def _extract_narrative_by_category(self, node_id: str, category: str) -> list:
+        """Extract narrative entries of a specific category as structured list."""
+        raw = self._narrative_mod.read_narrative(
+            self._narratives_dir, node_id, categories=[category]
+        )
+        if not raw.strip():
+            return []
+        entries = []
+        for block in raw.split("\n## "):
+            block = block.strip()
+            if not block:
+                continue
+            if not block.startswith("## "):
+                block = "## " + block
+            lines = block.split("\n", 1)
+            content = lines[1].strip() if len(lines) > 1 else ""
+            if content:
+                entries.append({"content": content})
+        return entries
+
+    def _load_role_prompt(self, role: str) -> str:
+        """Load role prompt from fpms/prompts/{role}.md."""
+        prompt_map = {"strategy": "strategy", "review": "review", "execution": "execution"}
+        filename = prompt_map.get(role)
+        if not filename:
+            return ""
+        import fpms
+        pkg_dir = os.path.dirname(fpms.__file__)
+        prompt_path = os.path.join(pkg_dir, "prompts", f"{filename}.md")
+        if os.path.exists(prompt_path):
+            with open(prompt_path) as f:
+                return f.read()
+        return ""
 
     def heartbeat(self) -> dict:
         """执行心跳。返回告警和焦点建议。"""
