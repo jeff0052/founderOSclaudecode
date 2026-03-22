@@ -745,3 +745,111 @@ class TestEmptyDB:
         # L1 and L2 should handle missing node gracefully
         assert bundle.l1_neighborhood != ""
         assert bundle.l2_focus != ""
+
+
+# ===========================================================================
+# TestRoleBasedFiltering
+# ===========================================================================
+
+class TestRoleBasedFiltering:
+    """Role-based context filtering (v0.3 Work Mode)."""
+
+    def _setup_categorized_narrative(self, store, narratives_dir):
+        """Create a node with narrative entries of different categories."""
+        from fpms.spine import narrative as narrative_mod
+
+        node = _make_node(
+            "task-role", title="Role Test Task", status="active",
+            summary="Summary for role tests.", why="Why for role tests.",
+        )
+        _insert_node(store, node)
+
+        now = _iso(_now())
+        # Append 5 entries with different categories
+        for category in ["decision", "feedback", "risk", "technical", "progress"]:
+            narrative_mod.append_narrative(
+                narratives_dir=narratives_dir,
+                node_id="task-role",
+                timestamp=now,
+                event_type="note",
+                content=f"Content for category: {category}.",
+                category=category,
+            )
+
+    def test_role_all_returns_all(self, store, narratives_dir):
+        """role='all' returns ALL narrative entries (all 5 categories visible)."""
+        self._setup_categorized_narrative(store, narratives_dir)
+
+        assembler = _make_assembler(store, narratives_dir)
+        bundle = assembler.assemble(focus_node_id="task-role", role="all")
+
+        for category in ["decision", "feedback", "risk", "technical", "progress"]:
+            assert f"Content for category: {category}." in bundle.l2_focus, \
+                f"Expected category '{category}' in role='all' output"
+
+    def test_role_execution_excludes_decision_feedback(self, store, narratives_dir):
+        """role='execution' includes technical+progress, excludes decision+feedback."""
+        self._setup_categorized_narrative(store, narratives_dir)
+
+        assembler = _make_assembler(store, narratives_dir)
+        bundle = assembler.assemble(focus_node_id="task-role", role="execution")
+
+        assert "Content for category: technical." in bundle.l2_focus
+        assert "Content for category: progress." in bundle.l2_focus
+        assert "Content for category: decision." not in bundle.l2_focus
+        assert "Content for category: feedback." not in bundle.l2_focus
+
+    def test_role_strategy_excludes_technical_progress(self, store, narratives_dir):
+        """role='strategy' includes decision+feedback, excludes technical+progress."""
+        self._setup_categorized_narrative(store, narratives_dir)
+
+        assembler = _make_assembler(store, narratives_dir)
+        bundle = assembler.assemble(focus_node_id="task-role", role="strategy")
+
+        assert "Content for category: decision." in bundle.l2_focus
+        assert "Content for category: feedback." in bundle.l2_focus
+        assert "Content for category: technical." not in bundle.l2_focus
+        assert "Content for category: progress." not in bundle.l2_focus
+
+    def test_role_review_includes_risk_excludes_decision_technical(self, store, narratives_dir):
+        """role='review' includes risk+progress, excludes decision+technical."""
+        self._setup_categorized_narrative(store, narratives_dir)
+
+        assembler = _make_assembler(store, narratives_dir)
+        bundle = assembler.assemble(focus_node_id="task-role", role="review")
+
+        assert "Content for category: risk." in bundle.l2_focus
+        assert "Content for category: progress." in bundle.l2_focus
+        assert "Content for category: decision." not in bundle.l2_focus
+        assert "Content for category: technical." not in bundle.l2_focus
+
+    def test_default_role_is_all(self, store, narratives_dir):
+        """assemble() without role param behaves the same as role='all'."""
+        self._setup_categorized_narrative(store, narratives_dir)
+
+        assembler = _make_assembler(store, narratives_dir)
+        bundle_no_role = assembler.assemble(focus_node_id="task-role")
+        bundle_all = assembler.assemble(focus_node_id="task-role", role="all")
+
+        # Both should contain all categories
+        for category in ["decision", "feedback", "risk", "technical", "progress"]:
+            assert f"Content for category: {category}." in bundle_no_role.l2_focus
+            assert f"Content for category: {category}." in bundle_all.l2_focus
+
+    def test_execution_role_no_l0(self, store, narratives_dir):
+        """role='execution': L0 dashboard is empty (budget l0=0)."""
+        self._setup_categorized_narrative(store, narratives_dir)
+
+        assembler = _make_assembler(store, narratives_dir)
+        bundle = assembler.assemble(focus_node_id="task-role", role="execution")
+
+        assert bundle.l0_dashboard == ""
+
+    def test_strategy_role_has_l0(self, store, narratives_dir):
+        """role='strategy': L0 dashboard is populated (has '# Dashboard')."""
+        self._setup_categorized_narrative(store, narratives_dir)
+
+        assembler = _make_assembler(store, narratives_dir)
+        bundle = assembler.assemble(focus_node_id="task-role", role="strategy")
+
+        assert "# Dashboard" in bundle.l0_dashboard

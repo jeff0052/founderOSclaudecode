@@ -28,6 +28,22 @@ _L1_MAX_DEPENDENTS = 10
 _L1_MAX_SIBLINGS = 10
 _DEFAULT_MAX_TOKENS = 10000
 
+# Role → narrative categories to include (None = no filtering)
+_ROLE_CATEGORIES = {
+    "strategy":  {"decision", "feedback"},
+    "review":    {"risk", "progress"},
+    "execution": {"technical", "progress"},
+    "all":       None,
+}
+
+# Role → token budget allocation
+_ROLE_BUDGETS = {
+    "execution": {"total": 8000, "l0": 0,    "l1": 3000, "l2": 5000},
+    "strategy":  {"total": 8000, "l0": 2000, "l1": 3000, "l2": 3000},
+    "review":    {"total": 8000, "l0": 1000, "l1": 2000, "l2": 5000},
+    "all":       {"total": 10000, "l0": None, "l1": None, "l2": None},
+}
+
 _STATUS_ICONS = {
     "inbox":   "📥",
     "active":  "▶",
@@ -106,6 +122,7 @@ class BundleAssembler:
         focus_node_id: Optional[str] = None,
         now: Optional[datetime] = None,
         max_tokens: int = _DEFAULT_MAX_TOKENS,
+        role: str = "all",
     ) -> ContextBundle:
         """Assemble the 4-layer context bundle.
 
@@ -130,8 +147,19 @@ class BundleAssembler:
                 state = self._focus_scheduler.get_state()
                 focus_node_id = state.primary
 
+        # Resolve role budget
+        role_budget = _ROLE_BUDGETS.get(role, _ROLE_BUDGETS["all"])
+        if role_budget["total"] is not None and role != "all":
+            max_tokens = role_budget["total"]
+
+        # Resolve role categories for narrative filtering
+        role_categories = _ROLE_CATEGORIES.get(role)
+
         # 2. Build each layer
-        l0 = self._build_l0()
+        if role_budget.get("l0") == 0:
+            l0 = ""
+        else:
+            l0 = self._build_l0()
         l_alert = self._build_l_alert()
 
         if focus_node_id is not None:
@@ -144,7 +172,7 @@ class BundleAssembler:
                 focus_node_id = None
             else:
                 l1 = self._build_l1(focus_node_id)
-                l2 = self._build_l2(focus_node_id)
+                l2 = self._build_l2(focus_node_id, categories=role_categories)
         else:
             l1 = "# Neighborhood\nNo focus node selected."
             l2 = "# Focus\nNo focus node selected."
@@ -351,7 +379,7 @@ class BundleAssembler:
 
         return "\n".join(lines)
 
-    def _build_l2(self, focus_node_id: str) -> str:
+    def _build_l2(self, focus_node_id: str, categories: Optional[set] = None) -> str:
         """Build L2: detailed focus node view with narrative."""
         store = self._store
         node = store.get_node(focus_node_id)
@@ -403,7 +431,8 @@ class BundleAssembler:
 
         # Recent narrative (last 5 entries)
         narrative = self._narrative_mod.read_narrative(
-            self._narratives_dir, focus_node_id, last_n_entries=5
+            self._narratives_dir, focus_node_id, last_n_entries=5,
+            categories=list(categories) if categories else None,
         )
         if narrative:
             lines.append("\n## Narrative")
