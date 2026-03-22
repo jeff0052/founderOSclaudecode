@@ -1,7 +1,7 @@
 ---
 name: focalpoint-memory
 description: "FocalPoint — AI cognitive operating system. Memory + attention management + workflow orchestration. Workbench prepares context before tasks. Three-Province review ensures quality. Never lose track of projects again."
-version: "0.3.0"
+version: "0.3.1"
 metadata:
   openclaw:
     emoji: "🧠"
@@ -66,7 +66,7 @@ mcp_servers:
 
 ### 3. Restart OpenClaw
 
-That's it. 21 tools are now available in your conversations.
+That's it. 22 tools are now available in your conversations.
 
 ## Work Mode (v0.3)
 
@@ -133,6 +133,7 @@ AI:  search_nodes(query="caching decisions")
 | `activate_workbench` | **Prepare working context with role + knowledge** |
 | `set_knowledge` | **Attach knowledge documents to nodes** |
 | `get_knowledge` | **Read knowledge with parent inheritance** |
+| `delete_knowledge` | **Delete knowledge document from a node** |
 | `sansei_review` | **Three-Province parallel review** |
 | `create_node` | Create a project/task/goal |
 | `update_status` | Change status (inbox/active/waiting/done/dropped) |
