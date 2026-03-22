@@ -4,6 +4,47 @@
 
 ---
 
+## 2026-03-22 — v0.3.1 Hotfix
+
+### Bug 修复
+
+| 问题 | 修复 |
+|------|------|
+| `index_narrative` 覆盖 `knowledge_text` 为空 | 保留已有 `knowledge_text`（与 `index_knowledge` 对称） |
+| `append_log` 后 narrative 内容不可搜索 | `handle_append_log` 后自动调用 `index_narrative` |
+| `set_knowledge` 后 knowledge 内容不可搜索 | MCP tool 后自动调用 `index_knowledge` |
+| FTS5 查询含特殊字符时报错 | `_build_fts_query` 清理 `"*(){}[]:^~` 和保留词 |
+| LIKE 查询含 `%` `_` 时多匹配 | 转义 LIKE 元字符 + `ESCAPE '\\'` |
+| FTS 索引失败时静默无日志 | 3 处 `except` 改为 `logging.warning` |
+
+### 新增
+
+| 项 | 内容 |
+|-----|------|
+| `delete_knowledge` MCP tool | 删除知识文档 + 自动更新 FTS 索引（第 22 个 tool） |
+| CJK 搜索 fallback | `_search_like_content` 对中文内容做 LIKE 回退搜索 |
+
+### 文档
+
+| 文档 | 内容 |
+|------|------|
+| `docs/marketing/PRODUCT-INTRO.md` | 产品介绍 + 竞品分析（Mem0/Zep/Letta/CrewAI/openclaw-pm） |
+| `docs/marketing/USAGE-GUIDE.md` | 完整使用指南 + 22 tools 速查 |
+| `docs/WORK-MODE-GUIDE.md` | Work Mode 使用方法（工作台 + 三省 + 知识 + 分类日志） |
+
+### 测试
+
+- 新增 8 tests（FTS 自动索引 3 + knowledge 索引 3 + delete_knowledge 2）
+- 总计 665 tests 全绿
+
+### 发布
+
+- PyPI: focalpoint 0.3.1
+- ClawHub: focalpoint-memory 0.3.1（22 tools）
+- MCP Server instructions 加入 Work Mode Protocol 使用指南
+
+---
+
 ## 2026-03-22 — v0.3 Work Mode 开发完成
 
 ### 新增模块
