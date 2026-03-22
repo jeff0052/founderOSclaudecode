@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "focalpoint"
-version = "0.3.2"
+version = "0.3.3"
 description = "FocalPoint — The attention manager for AI agents. Persistent memory, structured work tracking, proactive risk alerts, and bidirectional sync with GitHub/Notion."
 readme = "README.md"
 license = {file = "LICENSE"}
