@@ -52,6 +52,7 @@ class ToolHandler:
         self.rollup = rollup_module
         self.dashboard = dashboard_module
         self.narratives_dir = "fpms/narratives"  # default, can be overridden
+        self._adapter_registry = None  # set via set_adapter_registry()
 
     # -----------------------------------------------------------------
     # Routing
@@ -221,6 +222,26 @@ class ToolHandler:
             f"Status changed: {node.status} → {inp.new_status}"
             + (f" (reason: {inp.reason})" if inp.reason else ""),
         )
+
+        # Post-commit: write-back to external source (M3)
+        if (
+            updated.source != "internal"
+            and updated.source_id
+            and self._adapter_registry is not None
+            and self._adapter_registry.has(updated.source)
+        ):
+            try:
+                adapter = self._adapter_registry.get(updated.source)
+                adapter.write_status(updated.source_id, inp.new_status)
+            except Exception:
+                # Offline degradation: log failure but don't block
+                self.narrative.append_narrative(
+                    self.narratives_dir,
+                    node.id,
+                    now,
+                    "write_back_failed",
+                    f"Failed to sync status '{inp.new_status}' to {updated.source}",
+                )
 
         return ToolResult(
             success=True,

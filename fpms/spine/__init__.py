@@ -107,6 +107,7 @@ class SpineEngine:
         """Set/replace the adapter registry. Updates BundleAssembler."""
         self._adapter_registry = registry
         self._bundle_assembler._adapter_registry = registry
+        self._tool_handler._adapter_registry = registry
 
     def execute_tool(self, tool_name: str, params: dict) -> ToolResult:
         """执行 Tool Call。入口方法。通过 CommandExecutor 实现幂等。"""

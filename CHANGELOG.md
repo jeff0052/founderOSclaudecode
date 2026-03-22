@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-03-22 — M3 写回闭环 + M2 Notion 集成
+
+### M3: Write-Back（FPMS → GitHub/Notion）
+
+| 模块 | 变更 |
+|------|------|
+| base.py | 新增 `write_status()` 可选方法 |
+| github_adapter.py | 实现 `write_status()`（close/reopen issue）、`write_comment()`、`_patch()`、`_post()`、`_reverse_map_status()` |
+| notion_adapter.py | 实现 `write_status()`（更新页面 Status 属性）、`write_comment()`（追加 paragraph block）、`_patch()`、`_reverse_map_status()` |
+| tools.py | `handle_update_status` 后自动触发 write-back，失败不阻塞（离线降级） |
+| __init__.py | `set_adapter_registry` 同时注入 ToolHandler |
+
+### M2: Notion 集成
+
+| 模块 | 内容 |
+|------|------|
+| notion_adapter.py | NotionAdapter — sync_node（页面同步）、list_updates（数据库查询）、状态映射 |
+
+### 真实 API 验证
+
+- GitHub: 3 个 issue 同步成功（jeff0052/founderOSclaudecode）
+- Notion: 3 个页面同步成功 + 写回状态 "In progress" + 写回评论 验证通过
+
+### 测试
+
+- 新增 29 tests（Notion 17 + write-back 12）
+- 总计 596 tests 全绿
+
+---
+
 ## 2026-03-22 — FocalPoint v0.1.0 发布
 
 ### 产品发布

@@ -160,9 +160,52 @@ class GitHubAdapter(BaseAdapter):
         events.sort(key=lambda e: e.timestamp)
         return events
 
+    def write_status(self, source_id: str, new_status: str) -> None:
+        """Update GitHub Issue state (open/closed).
+
+        Args:
+            source_id: "owner/repo#number"
+            new_status: FocalPoint status (done→closed, others→open)
+        """
+        owner, repo, number = self._parse_source_id(source_id)
+        url = f"{_API_BASE}/repos/{owner}/{repo}/issues/{number}"
+        gh_state = self._reverse_map_status(new_status)
+
+        try:
+            resp = self._patch(url, json={"state": gh_state})
+        except httpx.TimeoutException:
+            raise ConnectionError(
+                f"GitHub API timeout writing status for {source_id}."
+            )
+        resp.raise_for_status()
+
+    def write_comment(self, source_id: str, text: str) -> None:
+        """Post a comment to a GitHub Issue/PR.
+
+        Args:
+            source_id: "owner/repo#number"
+            text: Comment body
+        """
+        owner, repo, number = self._parse_source_id(source_id)
+        url = f"{_API_BASE}/repos/{owner}/{repo}/issues/{number}/comments"
+
+        try:
+            resp = self._post(url, json={"body": text})
+        except httpx.TimeoutException:
+            raise ConnectionError(
+                f"GitHub API timeout writing comment for {source_id}."
+            )
+        resp.raise_for_status()
+
     def map_status(self, github_state: str) -> str:
         """Map GitHub issue/PR state to FounderOS status. Unknown->inbox."""
         return self._status_map.get(github_state, "inbox")
+
+    def _reverse_map_status(self, fp_status: str) -> str:
+        """Map FocalPoint status back to GitHub state."""
+        if fp_status in ("done", "dropped"):
+            return "closed"
+        return "open"
 
     def _get(self, url: str, params: Optional[dict] = None) -> httpx.Response:
         """Make authenticated GET request to GitHub API."""
@@ -172,6 +215,24 @@ class GitHubAdapter(BaseAdapter):
             "X-GitHub-Api-Version": "2022-11-28",
         }
         return httpx.get(url, headers=headers, params=params, timeout=self._timeout)
+
+    def _post(self, url: str, json: Optional[dict] = None) -> httpx.Response:
+        """Make authenticated POST request to GitHub API."""
+        headers = {
+            "Authorization": f"Bearer {self._token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        return httpx.post(url, headers=headers, json=json, timeout=self._timeout)
+
+    def _patch(self, url: str, json: Optional[dict] = None) -> httpx.Response:
+        """Make authenticated PATCH request to GitHub API."""
+        headers = {
+            "Authorization": f"Bearer {self._token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        return httpx.patch(url, headers=headers, json=json, timeout=self._timeout)
 
     def _parse_source_id(self, source_id: str) -> tuple[str, str, int]:
         """Parse 'owner/repo#number' or '#number' into (owner, repo, number)."""

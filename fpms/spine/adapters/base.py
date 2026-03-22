@@ -36,6 +36,12 @@ class BaseAdapter(ABC):
     def list_updates(self, since: Optional[datetime] = None) -> List[SourceEvent]:
         ...
 
+    def write_status(self, source_id: str, new_status: str) -> None:
+        """Update external object status. Optional."""
+        raise NotImplementedError(
+            f"{self.source_name} adapter does not support write_status"
+        )
+
     def write_comment(self, source_id: str, text: str) -> None:
         """Post a comment/note to the external object. Optional."""
         raise NotImplementedError(

@@ -41,7 +41,8 @@ FPMS is a **cognitive engine** that manages your AI's attention:
 | Anti-Amnesia | No | No | No | No | **Yes** |
 | Status lifecycle | No | No | No | No | **Yes (inbox/active/waiting/done)** |
 | Auto-archive | No | No | No | No | **Yes** |
-| External sync (GitHub) | No | No | No | No | **Yes** |
+| External sync (GitHub + Notion) | No | No | No | No | **Yes (bidirectional)** |
+| Write-back to external tools | No | No | No | No | **Yes** |
 
 **Other tools remember what was said. FPMS manages what needs to be done.**
 

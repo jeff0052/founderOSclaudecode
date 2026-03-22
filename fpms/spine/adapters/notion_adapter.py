@@ -162,9 +162,63 @@ class NotionAdapter(BaseAdapter):
         events.sort(key=lambda e: e.timestamp)
         return events
 
+    def write_status(self, source_id: str, new_status: str) -> None:
+        """Update Notion page status property.
+
+        Args:
+            source_id: Notion page UUID
+            new_status: FocalPoint status (done→Done, active→In progress, etc.)
+        """
+        page_id = self._parse_source_id(source_id)
+        url = f"{_API_BASE}/pages/{page_id}"
+        notion_status = self._reverse_map_status(new_status)
+
+        try:
+            resp = self._patch(url, json={
+                "properties": {
+                    "Status": {"status": {"name": notion_status}}
+                }
+            })
+        except httpx.TimeoutException:
+            raise ConnectionError(
+                f"Notion API timeout writing status for page {source_id}."
+            )
+        resp.raise_for_status()
+
+    def write_comment(self, source_id: str, text: str) -> None:
+        """Append a comment block to a Notion page.
+
+        Args:
+            source_id: Notion page UUID
+            text: Comment text
+        """
+        page_id = self._parse_source_id(source_id)
+        url = f"{_API_BASE}/blocks/{page_id}/children"
+
+        try:
+            resp = self._patch(url, json={
+                "children": [{
+                    "object": "block",
+                    "type": "paragraph",
+                    "paragraph": {
+                        "rich_text": [{"type": "text", "text": {"content": text}}]
+                    }
+                }]
+            })
+        except httpx.TimeoutException:
+            raise ConnectionError(
+                f"Notion API timeout writing comment for page {source_id}."
+            )
+        resp.raise_for_status()
+
     def map_status(self, notion_status: str) -> str:
         """Map Notion status name to FocalPoint status. Unknown -> inbox."""
         return self._status_map.get(notion_status, "inbox")
+
+    def _reverse_map_status(self, fp_status: str) -> str:
+        """Map FocalPoint status back to Notion status name."""
+        reverse = {v: k for k, v in self._status_map.items()}
+        return reverse.get(fp_status, "Not started")
 
     # --- Private helpers ---
 
@@ -177,6 +231,12 @@ class NotionAdapter(BaseAdapter):
     def _post(self, url: str, json: Optional[dict] = None) -> httpx.Response:
         """Make authenticated POST request to Notion API."""
         return httpx.post(
+            url, headers=self._headers(), json=json, timeout=self._timeout
+        )
+
+    def _patch(self, url: str, json: Optional[dict] = None) -> httpx.Response:
+        """Make authenticated PATCH request to Notion API."""
+        return httpx.patch(
             url, headers=self._headers(), json=json, timeout=self._timeout
         )
 
