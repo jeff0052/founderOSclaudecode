@@ -30,6 +30,37 @@
 
 **预算梯度**：`5k → 20k → 100k → 200k → 500k → 1M`。系统默认从 `budget.execution`(100k) 开始，任务过于简单时下降，精度不够时上升。
 
+## 1b. 角色 Token 预算
+
+*v0.3: 工作台按角色分配不同的 token 预算。*
+
+| 角色 | 总预算 | L0 | L1 | L2 | 说明 |
+|------|--------|-----|------|------|------|
+| `execution` | 8,000 | 0 | 3,000 | 5,000 | 执行者不需要全局看板 |
+| `strategy` | 8,000 | 2,000 | 3,000 | 3,000 | 决策者需要全局视野 |
+| `review` | 8,000 | 1,000 | 2,000 | 5,000 | 审核者聚焦细节 + 少量全局 |
+| `all` | 10,000 | 自动 | 自动 | 自动 | 默认，向后兼容 |
+
+## 1c. Narrative Categories
+
+*v0.3: 叙事条目按 category 分类，角色按需过滤。*
+
+| category | 含义 | 可见角色 |
+|----------|------|---------|
+| `decision` | 决策记录 | strategy, all |
+| `feedback` | 用户/市场反馈 | strategy, all |
+| `risk` | 风险/教训 | review, all |
+| `technical` | 技术细节 | execution, all |
+| `progress` | 进度更新 | review, execution, all |
+| `general` | 默认 | all |
+
+## 1d. 三省 Protocol
+
+| 参数 | 当前值 | 说明 |
+|------|--------|------|
+| `sansei.max_rejections` | 3 | 打回超过此次数通知人类 |
+| `sansei.review_mode` | parallel | 门下省 + 尚书省并行审查（不串行） |
+
 ## 2. 压缩策略
 
 | 参数 | 当前值 | 单位 | 说明 | 备注 |
@@ -60,7 +91,8 @@
 
 | 参数 | 当前值 | 单位 | 说明 | 备注 |
 |------|--------|------|------|------|
-| `heartbeat.interval` | 15 | 分钟 | Heartbeat 扫描间隔 | 与外部工具同步频率对齐（PRD-cognitive-engine §6.2） |
+| `heartbeat.interval` | 30 | 分钟 | Heartbeat 兜底扫描间隔（无操作时） | 有写操作时事件驱动触发，无操作时按此间隔兜底 |
+| `heartbeat.event_driven` | true | bool | 是否在写操作后自动触发 heartbeat | update_status/create_node/append_log 后触发 |
 | `heartbeat.stale_threshold` | 72 | 小时 | 活跃节点超过此时间未更新 = stale | |
 | `anti_amnesia.reminder_interval` | 48 | 小时 | 被遗忘节点的提醒间隔 | |
 
@@ -102,3 +134,8 @@
 | 日期 | 参数 | 旧值 | 新值 | 原因 |
 |------|------|------|------|------|
 | 2026-03-20 | - | - | - | 初版，所有参数首次定义 |
+| 2026-03-22 | `heartbeat.interval` | 15 | 30 | 单 agent 场景 15 分钟太频繁，改为 30 分钟兜底 + 事件驱动 |
+| 2026-03-22 | `heartbeat.event_driven` | - | true | 新增：写操作后自动触发心跳，减少空跑 |
+| 2026-03-22 | `role budgets` | - | §1b | v0.3: 新增角色 token 预算分配 |
+| 2026-03-22 | `narrative categories` | - | §1c | v0.3: 新增叙事分类 + 角色可见性 |
+| 2026-03-22 | `sansei.*` | - | §1d | v0.3: 新增三省 Protocol 参数 |

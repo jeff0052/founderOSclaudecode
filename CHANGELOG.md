@@ -4,6 +4,131 @@
 
 ---
 
+## 2026-03-22 — v0.3 Work Mode 开发完成
+
+### 新增模块
+
+| 模块 | 位置 | 内容 |
+|------|------|------|
+| knowledge.py | fpms/spine/knowledge.py | 知识文档 CRUD + 父节点继承（set/get/delete/list） |
+| 角色 prompts | fpms/prompts/{strategy,review,execution}.md | 三省角色的 system prompt |
+| FTS5 索引 | fpms/spine/schema.py + store.py | SQLite FTS5 全文搜索（标题 + narrative + knowledge） |
+
+### 修改模块
+
+| 模块 | 变更 |
+|------|------|
+| narrative.py | `append_narrative` 新增 `category` 参数，header 格式变为 `## {ts} [{event_type}] [{category}]`；`read_narrative` 新增 `categories` 过滤参数 |
+| models.py | 新增 `NARRATIVE_CATEGORIES` 常量（decision/feedback/risk/technical/progress/general） |
+| tools.py | `handle_append_log` 校验并传递 category；`handle_search_nodes` 新增 `query` 参数路由到 FTS |
+| bundle.py | `assemble()` 新增 `role` 参数；按角色过滤 narrative category；按角色分配 token 预算；execution 角色跳过 L0 |
+| __init__.py | `get_context_bundle` 新增 `role` 参数；新增 `activate_workbench`（无状态工作台）、`sansei_review`（三省 Protocol）、`_sort_subtasks_by_deps`（拓扑排序）、`_load_role_prompt`；新增 `_knowledge_dir` 属性 |
+| mcp_server.py | 更新 3 tools（append_log +category, get_context_bundle +role, search_nodes +query）；新增 3 tools（activate_workbench, set_knowledge, get_knowledge） |
+| schema.py | 新增 `fts_index` FTS5 虚拟表 |
+| store.py | 新增 `search_fts`、`_ensure_fts_indexed`、`index_narrative`、`index_knowledge`、`_search_like_fallback` |
+
+### 角色化上下文过滤
+
+| 角色 | 看到的 narrative categories | token 预算 | L0 |
+|------|---------------------------|-----------|-----|
+| strategy（中书省） | decision, feedback | 8,000 | 2,000 |
+| review（门下省） | risk, progress | 8,000 | 1,000 |
+| execution（尚书省） | technical, progress | 8,000 | 0（跳过） |
+| all（默认） | 全部 | 10,000 | 自动 |
+
+### 三省 Protocol
+
+- `sansei_review(node_id, proposal, review_verdict, engineer_verdict)` — 门下省 + 尚书省并行审查
+- 两者都通过才批准，任一打回记入 narrative（risk/technical category）
+- 打回计数持久化在 session_state，超过 3 次 `escalate_to_human=True`
+
+### 工作台 (activate_workbench)
+
+一次调用返回完整工作上下文：
+- `goal` — 节点标题
+- `knowledge` — 继承解析后的知识文档
+- `context` — 角色过滤后的 Context Bundle
+- `subtasks` — 按依赖拓扑排序的子任务
+- `suggested_next` — 第一个未完成的子任务
+- `role_prompt` — 角色 system prompt
+- `token_budget` — 当前角色的预算分配
+
+### MCP Tools 变更
+
+| 操作 | Tool | 变更 |
+|------|------|------|
+| 更新 | append_log | 新增 `category` 参数 |
+| 更新 | get_context_bundle | 新增 `role` 参数 |
+| 更新 | search_nodes | 新增 `query` 参数（FTS） |
+| 新增 | activate_workbench | 工作台激活 |
+| 新增 | set_knowledge | 写入知识文档 |
+| 新增 | get_knowledge | 读取知识文档（含继承） |
+
+### 测试
+
+- 新增 73 tests（knowledge 16 + narrative category 12 + FTS 7 + bundle filtering 7 + workbench 10 + tools category 3 + 三省 9 + misc 9）
+- 总计 657 tests 全绿
+- 原有 584 tests 全部通过（向后兼容）
+
+### 已知限制
+
+- CJK 全文搜索需空格分词（unicode61 tokenizer 限制）
+- 三省 Protocol 当前接受外部传入的 verdict，未内置 LLM 调用
+
+---
+
+## 2026-03-22 — 产品方向升级 + v0.3 Work Mode 设计
+
+### 产品方向决策
+
+**FocalPoint 从"记忆引擎"升级为"AI 认知操作系统"。**
+
+- FocalPoint = 记忆 + 注意力管理 + 工作流编排
+- 这就是 FounderOS 最初的愿景，从记忆引擎做起，现在加上认知层
+- 详见 `1-vision/ADR-product-direction.md`
+
+### v0.3 Work Mode 设计完成
+
+经过深度讨论（记录在 `docs/milestones/2026-03-22-focalpoint-and-work-mode.md`），确定了 v0.3 的 5 个功能模块：
+
+| 模块 | 说明 |
+|------|------|
+| 知识文档层（knowledge.py） | 节点挂载 MD 知识文档 + 子节点继承父节点 |
+| 工作台（workbench.py） | 一次函数调用准备所有上下文，无状态 |
+| 三省 Protocol | 中书（决策）+ 门下（经验教训）+ 尚书（工程评审+执行），并行审查 |
+| Narrative category | append_log 加 category 标签（decision/feedback/risk/technical/progress/general） |
+| 全文搜索 | SQLite FTS5，替代软关联 |
+
+### 关键设计决策
+
+1. **记忆没有角度** — 三个角色看同样的数据，差异在 role prompt 的思维方式
+2. **工作台无状态** — 一次调用返回，不是持久对象
+3. **知识文档可扩展** — 基础三种（overview/requirements/architecture）+ 自由命名
+4. **narrative 记过程，knowledge 记结论** — 两个都存
+5. **软关联不做** — 计算机的优势是精确检索，不是模拟神经网络
+6. **三省保留** — 注意力精度优先，一个角色只关注一件事
+7. **并行审查** — 门下+尚书同时审，不串行
+8. **≤3 次打回** — 超过通知人类
+
+### 新增文档
+
+| 文件 | 内容 |
+|------|------|
+| `1-vision/ADR-product-direction.md` | 产品方向决策记录 |
+| `2-requirements/PRD-work-mode.md` | v0.3 完整需求文档 |
+| `4-implementation/NEXT-SESSION.md` | 下一个 session 的任务包 |
+| `4-implementation/v03-acceptance.md` | v0.3 验收清单 |
+| `docs/milestones/2026-03-22-focalpoint-and-work-mode.md` | 设计思路演进（完整讨论过程） |
+
+### 其他更新
+
+- ROADMAP 重写：从五阶段线性改为三层架构（记忆→知识+工作台→协作）
+- OVERVIEW 更新：产品定位、演进阶段、公司看板
+- v0.2.0 发布到 PyPI（含 Notion adapter + BSL license + 新 README）
+- Heartbeat 频率从 15 分钟改为 30 分钟 + 事件驱动（SYSTEM-CONFIG）
+
+---
+
 ## 2026-03-22 — M3 写回闭环 + M2 Notion 集成
 
 ### M3: Write-Back（FPMS → GitHub/Notion）
