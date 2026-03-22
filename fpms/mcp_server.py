@@ -48,9 +48,28 @@ def _get_engine() -> SpineEngine:
 mcp = FastMCP(
     "fpms",
     instructions=(
-        "FPMS (Focal Point Memory System) is a cognitive memory engine for AI agents. "
-        "Use these tools to create/manage work items, track status, "
-        "get context bundles for conversation injection, and run heartbeat scans."
+        "FocalPoint — AI 认知操作系统。记忆 + 注意力管理 + 工作流编排。\n\n"
+        "## Work Mode Protocol\n\n"
+        "开始任何非平凡任务前，按以下流程操作：\n\n"
+        "1. **bootstrap** — 每次新对话开始时调用，获取全局状态\n"
+        "2. **activate_workbench(node_id, role)** — 开始任务前调用，准备工作上下文\n"
+        "   - role='strategy': 你是中书省，关注该不该做、做什么、优先级\n"
+        "   - role='review': 你是门下省，关注风险、历史教训、边界情况\n"
+        "   - role='execution': 你是尚书省，关注怎么做、验收标准、执行\n"
+        "3. **读取返回的 role_prompt** — 进入角色思维模式\n"
+        "4. **读取 knowledge + context** — 理解背景和当前状态\n"
+        "5. **按 subtasks + suggested_next 执行** — 按依赖顺序推进\n\n"
+        "## 三省 Protocol（重大决策时）\n\n"
+        "新功能/重大变更需要三省审查：\n"
+        "- 中书省产出需求 → sansei_review 提交审查\n"
+        "- 门下省 + 尚书省并行审查 → 两个都通过才执行\n"
+        "- 打回 ≤ 3 次，超过通知人类\n\n"
+        "## 日常操作\n\n"
+        "- 决策记录: append_log(category='decision')\n"
+        "- 风险标注: append_log(category='risk')\n"
+        "- 技术笔记: append_log(category='technical')\n"
+        "- 进度更新: append_log(category='progress')\n"
+        "- 结论存档: set_knowledge(doc_type, content)\n"
     ),
 )
 
@@ -462,6 +481,38 @@ def get_knowledge(
         store=engine.store, inherit=inherit,
     )
     return json.dumps({"success": True, "knowledge": result}, ensure_ascii=False)
+
+
+@mcp.tool()
+@_safe_tool
+def sansei_review(
+    node_id: str,
+    proposal: str,
+    review_approved: bool = True,
+    review_reason: str = "",
+    engineer_approved: bool = True,
+    engineer_reason: str = "",
+) -> str:
+    """三省 Protocol: submit parallel review verdicts from 门下省 + 尚书省.
+
+    Both must approve for the proposal to pass. Rejections are logged to narrative.
+    After 3 rejections on the same node, escalate_to_human=True.
+
+    Args:
+        node_id: Node being reviewed
+        proposal: The proposal text from 中书省
+        review_approved: 门下省 verdict (default: True)
+        review_reason: 门下省 reason
+        engineer_approved: 尚书省 verdict (default: True)
+        engineer_reason: 尚书省 reason
+    """
+    result = _get_engine().sansei_review(
+        node_id,
+        proposal=proposal,
+        review_verdict={"approved": review_approved, "reason": review_reason},
+        engineer_verdict={"approved": engineer_approved, "reason": engineer_reason},
+    )
+    return json.dumps(result, ensure_ascii=False, default=str)
 
 
 # =====================================================================
