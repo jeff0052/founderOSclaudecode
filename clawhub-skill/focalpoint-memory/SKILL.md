@@ -1,7 +1,7 @@
 ---
 name: focalpoint-memory
-description: "FocalPoint — The attention manager for AI agents. Persistent work tracking, proactive risk alerts, and cross-conversation continuity. Never lose track of projects again."
-version: "0.2.0"
+description: "FocalPoint — AI cognitive operating system. Memory + attention management + workflow orchestration. Workbench prepares context before tasks. Three-Province review ensures quality. Never lose track of projects again."
+version: "0.3.0"
 metadata:
   openclaw:
     emoji: "🧠"
@@ -15,32 +15,40 @@ metadata:
         bins: [focalpoint]
 ---
 
-# FPMS — Focal Point Memory System
+# FocalPoint — AI Cognitive Operating System
 
-Your AI forgets everything between conversations. FPMS fixes that.
+Your AI forgets everything between conversations. FocalPoint fixes that.
 
-**Not just memory — attention management.** FPMS tracks your projects, detects stuck tasks, and loads the right context at the right time.
+**Memory + Attention + Workflow.** FocalPoint tracks your projects, prepares context before tasks, and uses a Three-Province review system for quality decisions.
 
 ## What You Get
 
 - **Cross-conversation memory** — Start Monday, continue Wednesday, review Friday
-- **Structured work tracking** — Projects → Tasks → Subtasks with status lifecycle
+- **Workbench** — AI prepares goal, knowledge, context, and subtasks before starting work
+- **Role-based thinking** — Strategy, Review, and Execution roles see different perspectives
+- **Three-Province review** — Decisions go through parallel review before execution
+- **Knowledge documents** — Attach design docs to nodes with parent inheritance
+- **Full-text search** — Find anything across titles, narratives, and knowledge
 - **Proactive alerts** — "Task X has been blocked for 3 days"
-- **Smart context loading** — Only loads what fits your token budget
-- **GitHub sync** — Issues auto-sync as FPMS nodes
+- **Smart context loading** — Role-filtered, token-budgeted context assembly
+- **GitHub + Notion sync** — Issues and pages auto-sync as FocalPoint nodes
 
-## How It's Different From Other Memory Tools
+## How It's Different
 
-| | Mem0/Zep | **FPMS** |
+| | Mem0/Zep | **FocalPoint** |
 |--|---------|----------|
-| Remembers conversations | Yes | Yes (via prompt rules) |
+| Remembers conversations | Yes | Yes |
 | Tracks tasks & projects | No | **Yes** |
-| Alerts you about stuck work | No | **Yes (heartbeat)** |
+| Prepares work context | No | **Yes (workbench)** |
+| Role-based perspectives | No | **Yes (3 roles)** |
+| Decision review workflow | No | **Yes (Three-Province)** |
+| Knowledge doc inheritance | No | **Yes** |
+| Full-text search | No | **Yes (FTS5)** |
+| Alerts about stuck work | No | **Yes (heartbeat)** |
 | Manages token budget | No | **Yes (L0/L1/L2)** |
-| Parent-child task hierarchy | No | **Yes** |
-| GitHub integration | No | **Yes** |
+| GitHub/Notion integration | No | **Yes** |
 
-**Other tools remember what was said. FPMS manages what needs to be done.**
+**Other tools remember what was said. FocalPoint manages what needs to be done.**
 
 ## Setup
 
@@ -58,7 +66,36 @@ mcp_servers:
 
 ### 3. Restart OpenClaw
 
-That's it. 18 tools are now available in your conversations.
+That's it. 21 tools are now available in your conversations.
+
+## Work Mode (v0.3)
+
+### Workbench — prepare before you work
+```
+You: "Work on the payment system task"
+AI calls activate_workbench(node_id, role="execution")
+→ Gets: goal, knowledge docs, context bundle, sorted subtasks,
+  suggested next step, and execution role prompt
+→ AI enters role, reads background, starts working
+```
+
+### Three-Province Review — quality decisions
+```
+Strategy (中书省): "Should we do this? What's the priority?"
+Review (门下省):   "Any risks? Historical lessons?"
+Engineer (尚书省): "Is this feasible? How to implement?"
+
+Both Review + Engineer must approve before execution.
+Max 3 rejections, then escalate to human.
+```
+
+### Knowledge Documents — persistent design context
+```
+You: "Save this architecture doc to the project"
+AI calls set_knowledge(project_id, "architecture", content)
+→ Child tasks inherit parent knowledge automatically
+→ Task reads project overview without you re-explaining
+```
 
 ## Use Cases
 
@@ -71,33 +108,37 @@ AI:  "3 tasks: 1 done, 1 active, 1 blocked. The blocked task
       is waiting on design review — it's been 2 days."
 ```
 
-### Decision memory
+### Decision memory with categories
 ```
 You: "We're going with Stripe for payments"
+AI:  append_log(node_id, "Chose Stripe — better API, lower fees", category="decision")
 (Two weeks later)
 You: "Why did we pick Stripe?"
-AI:  "You decided on March 15 — better API and lower international fees."
+AI:  Searches decisions → "You decided on March 15 — better API and lower international fees."
 ```
 
-### Risk detection
+### Full-text search
 ```
-AI automatically runs heartbeat and finds:
-  - Deploy task BLOCKED for 4 days
-  - Docs update STALE — no activity for a week
-  - Bug fix AT RISK — deadline is tomorrow
+You: "Find everything related to caching decisions"
+AI:  search_nodes(query="caching decisions")
+→ Finds nodes by title, narrative content, and knowledge docs
 ```
 
-## Available Tools (18)
+## Available Tools (21)
 
 | Tool | What it does |
 |------|-------------|
 | `bootstrap` | Load memory context (call at conversation start) |
 | `heartbeat` | Scan for risks: blocked, stale, at-risk tasks |
+| `activate_workbench` | **Prepare working context with role + knowledge** |
+| `set_knowledge` | **Attach knowledge documents to nodes** |
+| `get_knowledge` | **Read knowledge with parent inheritance** |
+| `sansei_review` | **Three-Province parallel review** |
 | `create_node` | Create a project/task/goal |
 | `update_status` | Change status (inbox/active/waiting/done/dropped) |
-| `append_log` | Record decisions, progress, links |
-| `get_context_bundle` | Get token-budgeted context payload |
-| `search_nodes` | Find tasks by status, parent, source |
+| `append_log` | Record decisions, progress, risks (with category) |
+| `get_context_bundle` | Get role-filtered, token-budgeted context |
+| `search_nodes` | Find tasks by filters or full-text search |
 | `get_node` | Get full details of a work item |
 | `shift_focus` | Switch AI attention to a specific task |
 | `expand_context` | See parent, children, dependencies |
@@ -113,11 +154,13 @@ AI automatically runs heartbeat and finds:
 Follow these rules in EVERY conversation:
 
 1. **Conversation start** → Call `bootstrap` to load memory
-2. **User mentions a task/project/goal** → `create_node`
-3. **User makes a decision** → `append_log` to the relevant node
-4. **Task progresses** → `update_status`
-5. **Before conversation ends** → `append_log` key takeaways
-6. **Every ~10 min** → `heartbeat` to check for risks
+2. **Before starting a task** → `activate_workbench` to prepare context
+3. **User makes a decision** → `append_log` with category="decision"
+4. **Risk identified** → `append_log` with category="risk"
+5. **Task progresses** → `update_status`
+6. **Design conclusions** → `set_knowledge` to persist for future sessions
+7. **Before conversation ends** → `append_log` key takeaways
+8. **Every ~10 min** → `heartbeat` to check for risks
 
 ## Requirements
 
@@ -127,5 +170,4 @@ Follow these rules in EVERY conversation:
 ## Links
 
 - [GitHub](https://github.com/jeff0052/founderOSclaudecode)
-- [PyPI](https://pypi.org/project/fpms/)
-- [Full Documentation](https://github.com/jeff0052/founderOSclaudecode/blob/main/docs/USAGE-GUIDE.md)
+- [PyPI](https://pypi.org/project/focalpoint/)
