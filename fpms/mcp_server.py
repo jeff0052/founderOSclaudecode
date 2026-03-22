@@ -304,7 +304,17 @@ def shift_focus(node_id: str) -> str:
     Args:
         node_id: Node to focus on
     """
-    return _result_to_str(_get_engine().execute_tool("shift_focus", {"node_id": node_id}))
+    engine = _get_engine()
+    try:
+        state = engine._focus_scheduler.shift_focus(node_id)
+    except ValueError as e:
+        return json.dumps({"success": False, "error": str(e)})
+    bundle = engine.get_context_bundle(user_focus=node_id)
+    return json.dumps({
+        "success": True,
+        "focus": state.primary,
+        "bundle": asdict(bundle),
+    }, ensure_ascii=False, default=str)
 
 
 @mcp.tool()
