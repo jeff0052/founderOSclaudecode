@@ -551,8 +551,9 @@ class ToolHandler:
         if ok:
             try:
                 self.store.index_narrative(node_id, self.narratives_dir)
-            except Exception:
-                pass  # FTS update failure is non-fatal
+            except Exception as e:
+                import logging
+                logging.getLogger("fpms.spine").warning("FTS narrative index failed for %s: %s", node_id, e)
 
         return ToolResult(
             success=ok,

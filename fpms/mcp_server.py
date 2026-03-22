@@ -460,8 +460,8 @@ def set_knowledge(node_id: str, doc_type: str, content: str) -> str:
     # Update FTS index
     try:
         engine.store.index_knowledge(node_id, engine._knowledge_dir)
-    except Exception:
-        pass  # FTS update failure is non-fatal
+    except Exception as e:
+        logger.warning("FTS knowledge index failed for %s: %s", node_id, e)
     return json.dumps({"success": True, "node_id": node_id, "doc_type": doc_type})
 
 
@@ -506,8 +506,8 @@ def delete_knowledge(node_id: str, doc_type: str) -> str:
     # Update FTS index
     try:
         engine.store.index_knowledge(node_id, engine._knowledge_dir)
-    except Exception:
-        pass  # FTS update failure is non-fatal
+    except Exception as e:
+        logger.warning("FTS knowledge index failed for %s: %s", node_id, e)
     return json.dumps({"success": True, "node_id": node_id, "doc_type": doc_type, "deleted": True})
 
 

@@ -3,6 +3,7 @@ import os
 import tempfile
 import pytest
 from fpms.spine import SpineEngine
+from fpms.spine import knowledge as knowledge_mod
 
 
 @pytest.fixture
@@ -65,7 +66,6 @@ class TestFTSAutoIndexNarrative:
         node_id = result.data["id"]
 
         # First, set knowledge and index it
-        from fpms.spine import knowledge as knowledge_mod
         knowledge_mod.set_knowledge(
             engine._knowledge_dir, node_id, "overview",
             "PostgreSQL with read replicas for scalability",
@@ -90,9 +90,6 @@ class TestFTSAutoIndexNarrative:
         # Narrative should also be searchable
         result = engine.execute_tool("search_nodes", {"query": "connection pooling"})
         assert node_id in [n["id"] for n in result.data["nodes"]]
-
-
-from fpms.spine import knowledge as knowledge_mod
 
 
 class TestFTSAutoIndexKnowledge:

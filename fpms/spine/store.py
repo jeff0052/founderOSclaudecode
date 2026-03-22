@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
@@ -509,15 +510,15 @@ class Store:
 
     @staticmethod
     def _build_fts_query(query: str) -> str:
-        """Build an FTS5 OR query from a whitespace-separated query string.
-
-        Splits on whitespace and joins tokens with OR so that documents
-        matching ANY token are returned. Single-token queries are passed
-        through unchanged.
-        """
-        tokens = query.split()
-        if len(tokens) <= 1:
-            return query
+        """Build FTS5 query with OR semantics, stripping special characters."""
+        # Strip FTS5 special characters
+        cleaned = re.sub(r'["\*\(\)\{\}\[\]:^~]', ' ', query)
+        tokens = cleaned.split()
+        tokens = [t for t in tokens if t.upper() not in ('AND', 'OR', 'NOT', 'NEAR')]
+        if not tokens:
+            return query.strip()
+        if len(tokens) == 1:
+            return tokens[0]
         return " OR ".join(tokens)
 
     def _search_like_content(self, query: str, limit: int) -> List[Node]:
@@ -526,12 +527,14 @@ class Store:
         tokens = query.split()
         matched_ids: set = set()
         for token in tokens:
-            pattern = f"%{token}%"
+            # Escape LIKE metacharacters before building the pattern
+            escaped = token.replace("%", "\\%").replace("_", "\\_")
+            pattern = f"%{escaped}%"
             sql = """
                 SELECT DISTINCT f.node_id FROM fts_index f
                 JOIN nodes n ON n.id = f.node_id
                 WHERE n.archived_at IS NULL
-                  AND (f.title LIKE ? OR f.narrative_text LIKE ? OR f.knowledge_text LIKE ?)
+                  AND (f.title LIKE ? ESCAPE '\\' OR f.narrative_text LIKE ? ESCAPE '\\' OR f.knowledge_text LIKE ? ESCAPE '\\')
             """
             rows = self._conn.execute(sql, (pattern, pattern, pattern)).fetchall()
             for row in rows:
@@ -542,7 +545,7 @@ class Store:
             return []
         placeholders = ",".join("?" * len(matched_ids))
         node_rows = self._conn.execute(
-            f"SELECT * FROM nodes WHERE id IN ({placeholders}) AND archived_at IS NULL LIMIT ?",
+            f"SELECT * FROM nodes WHERE id IN ({placeholders}) AND archived_at IS NULL ORDER BY updated_at DESC LIMIT ?",
             (*matched_ids, limit),
         ).fetchall()
         return [_row_to_node(r, cols) for r in node_rows]
