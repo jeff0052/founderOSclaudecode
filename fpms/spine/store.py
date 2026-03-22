@@ -469,6 +469,81 @@ class Store:
             (json.dumps(event), now, 0),
         )
 
+    def search_fts(self, query: str, limit: int = 20) -> List[Node]:
+        """Full-text search across titles, narratives, knowledge. Excludes archived."""
+        if not query.strip():
+            return []
+
+        # Ensure all nodes are indexed (incremental)
+        self._ensure_fts_indexed()
+
+        cols = self._node_columns()
+        sql = """
+            SELECT n.* FROM nodes n
+            JOIN fts_index f ON n.id = f.node_id
+            WHERE fts_index MATCH ? AND n.archived_at IS NULL
+            GROUP BY n.id
+            ORDER BY rank
+            LIMIT ?
+        """
+        try:
+            rows = self._conn.execute(sql, (query, limit)).fetchall()
+        except Exception:
+            # FTS query syntax error — fall back to LIKE
+            return self._search_like_fallback(query, limit)
+        return [_row_to_node(r, cols) for r in rows]
+
+    def _ensure_fts_indexed(self) -> None:
+        """Ensure all non-archived nodes have an FTS entry (incremental)."""
+        sql = """
+            SELECT n.id, n.title FROM nodes n
+            WHERE n.archived_at IS NULL
+            AND n.id NOT IN (SELECT node_id FROM fts_index)
+        """
+        rows = self._conn.execute(sql).fetchall()
+        for node_id, title in rows:
+            self._conn.execute(
+                "INSERT INTO fts_index (node_id, title, narrative_text, knowledge_text) VALUES (?,?,?,?)",
+                (node_id, title or "", "", ""),
+            )
+
+    def index_narrative(self, node_id: str, narratives_dir: str) -> None:
+        """Index (or re-index) a node's narrative content into FTS."""
+        from . import narrative as narrative_mod
+        text = narrative_mod.read_narrative(narratives_dir, node_id)
+        node = self.get_node(node_id)
+        title = node.title if node else ""
+        self._conn.execute("DELETE FROM fts_index WHERE node_id=?", (node_id,))
+        self._conn.execute(
+            "INSERT INTO fts_index (node_id, title, narrative_text, knowledge_text) VALUES (?,?,?,?)",
+            (node_id, title, text or "", ""),
+        )
+
+    def index_knowledge(self, node_id: str, knowledge_dir: str) -> None:
+        """Index (or re-index) a node's knowledge content into FTS."""
+        from .knowledge import get_knowledge
+        docs = get_knowledge(knowledge_dir, node_id)
+        knowledge_text = "\n\n".join(docs.values()) if isinstance(docs, dict) else ""
+        node = self.get_node(node_id)
+        title = node.title if node else ""
+        existing = self._conn.execute(
+            "SELECT narrative_text FROM fts_index WHERE node_id=?", (node_id,)
+        ).fetchone()
+        narrative_text = existing[0] if existing else ""
+        self._conn.execute("DELETE FROM fts_index WHERE node_id=?", (node_id,))
+        self._conn.execute(
+            "INSERT INTO fts_index (node_id, title, narrative_text, knowledge_text) VALUES (?,?,?,?)",
+            (node_id, title, narrative_text, knowledge_text),
+        )
+
+    def _search_like_fallback(self, query: str, limit: int) -> List[Node]:
+        """Fallback LIKE search when FTS query fails."""
+        cols = self._node_columns()
+        pattern = f"%{query}%"
+        sql = "SELECT * FROM nodes WHERE title LIKE ? AND archived_at IS NULL LIMIT ?"
+        rows = self._conn.execute(sql, (pattern, limit)).fetchall()
+        return [_row_to_node(r, cols) for r in rows]
+
     def flush_events(self) -> int:
         """将 audit_outbox 中未 flush 的事件写入 events.jsonl。返回 flush 的事件数。"""
         rows = self._conn.execute(

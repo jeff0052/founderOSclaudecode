@@ -785,12 +785,18 @@ class ToolHandler:
         """搜索节点。支持 status/parent_id/source 过滤 + 分页。
         summary 默认不含，include_summary=true 时含。"""
         command_id = params.get("command_id", "")
+        query = params.get("query")  # NEW: full-text search query
         filters = params.get("filters", {})
         limit = params.get("limit", 50)
         offset = params.get("offset", 0)
         include_summary = params.get("include_summary", False)
 
-        nodes = self.store.list_nodes(filters=filters, limit=limit, offset=offset)
+        # If query is provided, use FTS
+        if query:
+            nodes = self.store.search_fts(query, limit=limit)
+        else:
+            nodes = self.store.list_nodes(filters=filters, limit=limit, offset=offset)
+
         results = []
         for n in nodes:
             d = _node_to_dict(n)

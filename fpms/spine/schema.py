@@ -77,6 +77,15 @@ CREATE TABLE IF NOT EXISTS narrative_index (
     mentions TEXT,
     PRIMARY KEY (node_id, entry_offset)
 );
+
+-- Full-text search index (FTS5) — regular table (not contentless)
+CREATE VIRTUAL TABLE IF NOT EXISTS fts_index USING fts5(
+    node_id UNINDEXED,
+    title,
+    narrative_text,
+    knowledge_text,
+    tokenize='unicode61'
+);
 """
 
 
