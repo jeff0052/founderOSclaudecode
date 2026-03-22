@@ -3,4 +3,5 @@ __pycache__/
 *.pyc
 data/
 fpms/narratives/task-*.md
+fpms/narratives/
 dist/

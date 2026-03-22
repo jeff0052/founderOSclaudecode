@@ -53,9 +53,9 @@ class ToolHandler:
         self.dashboard = dashboard_module
         self.narratives_dir = "fpms/narratives"  # default, can be overridden
         self._adapter_registry = None  # set via set_adapter_registry()
-        self._focus_scheduler = None   # set via set_focus_scheduler()
+        self._focus_scheduler: Optional["FocusScheduler"] = None  # set via set_focus_scheduler()
 
-    def set_focus_scheduler(self, scheduler) -> None:
+    def set_focus_scheduler(self, scheduler: "FocusScheduler") -> None:
         """Set the FocusScheduler for shift_focus integration."""
         self._focus_scheduler = scheduler
 

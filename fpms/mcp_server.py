@@ -306,14 +306,13 @@ def shift_focus(node_id: str) -> str:
     """
     engine = _get_engine()
     try:
-        state = engine._focus_scheduler.shift_focus(node_id)
+        result = engine.shift_focus(node_id)
     except ValueError as e:
         return json.dumps({"success": False, "error": str(e)})
-    bundle = engine.get_context_bundle(user_focus=node_id)
     return json.dumps({
         "success": True,
-        "focus": state.primary,
-        "bundle": asdict(bundle),
+        "focus": result["focus"],
+        "bundle": asdict(result["bundle"]),
     }, ensure_ascii=False, default=str)
 
 

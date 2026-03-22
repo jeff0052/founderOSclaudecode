@@ -133,6 +133,16 @@ class SpineEngine:
 
         return self._bundle_assembler.assemble(focus_node_id=focus_node_id, role=role)
 
+    def shift_focus(self, node_id: str) -> dict:
+        """Shift focus to a node and return updated state + context bundle."""
+        state = self._focus_scheduler.shift_focus(node_id)
+        bundle = self.get_context_bundle(user_focus=node_id)
+        return {
+            "focus": state.primary,
+            "secondary": state.secondary,
+            "bundle": bundle,
+        }
+
     def activate_workbench(self, node_id: str, role: str = "execution") -> dict:
         """Activate the workbench — prepare AI working context. Stateless."""
         from .bundle import _ROLE_BUDGETS
