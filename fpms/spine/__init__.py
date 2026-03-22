@@ -78,6 +78,7 @@ class SpineEngine:
             store=self._store,
             narrative_module=narrative_mod,
         )
+        self._tool_handler.set_focus_scheduler(self._focus_scheduler)
 
         self._heartbeat = Heartbeat(
             store=self._store,

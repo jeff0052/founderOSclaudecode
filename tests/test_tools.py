@@ -14,6 +14,7 @@ from fpms.spine.tools import ToolHandler
 from fpms.spine.command_executor import CommandExecutor
 from fpms.spine import validator as validator_mod
 from fpms.spine import narrative as narrative_mod
+from fpms.spine.focus import FocusScheduler
 
 
 # ---------------------------------------------------------------------------
@@ -627,6 +628,48 @@ class TestShiftFocus:
             "command_id": "cmd-101",
         })
         assert result.success is False
+
+    def test_with_focus_scheduler_updates_state(self, store, tmp_dirs):
+        """FocusScheduler path: result.data['focus'] == node_id, scheduler state updated."""
+        _, _, narratives_dir = tmp_dirs
+        handler = ToolHandler(store)
+        handler.narratives_dir = narratives_dir
+
+        scheduler = FocusScheduler(store=store, narrative_module=narrative_mod)
+        handler.set_focus_scheduler(scheduler)
+
+        # Create a valid non-archived node with summary + is_root
+        node = _make_node(store, title="Scheduler Focus", summary="Has a summary", is_root=True)
+
+        result = handler.handle("shift_focus", {
+            "node_id": node.id,
+            "command_id": "cmd-102",
+        })
+        assert result.success is True
+        assert result.data["focus"] == node.id
+        assert scheduler.get_state().primary == node.id
+
+    def test_with_focus_scheduler_archived_node_returns_error(self, store, tmp_dirs):
+        """FocusScheduler raises ValueError for archived node; handler returns failure."""
+        _, _, narratives_dir = tmp_dirs
+        handler = ToolHandler(store)
+        handler.narratives_dir = narratives_dir
+
+        scheduler = FocusScheduler(store=store, narrative_module=narrative_mod)
+        handler.set_focus_scheduler(scheduler)
+
+        # Create a node and archive it
+        node = _make_node(store, title="Archived Focus", summary="s", is_root=True)
+        with store.transaction():
+            store.update_node(node.id, {"archived_at": datetime.now(timezone.utc).isoformat()})
+
+        result = handler.handle("shift_focus", {
+            "node_id": node.id,
+            "command_id": "cmd-103",
+        })
+        assert result.success is False
+        assert result.error is not None
+        assert "archived" in result.error.lower() or "does not exist" in result.error.lower()
 
 
 # ===========================================================================

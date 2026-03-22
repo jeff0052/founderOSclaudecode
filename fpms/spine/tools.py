@@ -53,6 +53,11 @@ class ToolHandler:
         self.dashboard = dashboard_module
         self.narratives_dir = "fpms/narratives"  # default, can be overridden
         self._adapter_registry = None  # set via set_adapter_registry()
+        self._focus_scheduler = None   # set via set_focus_scheduler()
+
+    def set_focus_scheduler(self, scheduler) -> None:
+        """Set the FocusScheduler for shift_focus integration."""
+        self._focus_scheduler = scheduler
 
     # -----------------------------------------------------------------
     # Routing
@@ -687,7 +692,7 @@ class ToolHandler:
     # --- Runtime Tools (2) ---
 
     def handle_shift_focus(self, params: dict) -> ToolResult:
-        """切换焦点到指定节点。"""
+        """切换焦点到指定节点。通过 FocusScheduler 更新状态。"""
         command_id = params.get("command_id", "")
         node_id = params.get("node_id")
 
@@ -708,13 +713,32 @@ class ToolHandler:
                 suggestion="Check node_id or use search_nodes to find the correct id",
             )
 
+        # Use FocusScheduler if available (v1+), fallback to session_state (v0)
+        if self._focus_scheduler is not None:
+            try:
+                state = self._focus_scheduler.shift_focus(node_id)
+                return ToolResult(
+                    success=True,
+                    command_id=command_id,
+                    data={"focus": state.primary, "secondary": state.secondary},
+                    affected_nodes=[node_id],
+                )
+            except ValueError as e:
+                return ToolResult(
+                    success=False,
+                    command_id=command_id,
+                    error=str(e),
+                    suggestion="Check node_id — node may be archived",
+                )
+
+        # Fallback: direct session_state write
         with self.store.transaction():
             self.store.set_session("focus_list", [node_id])
 
         return ToolResult(
             success=True,
             command_id=command_id,
-            data={"focus_list": [node_id]},
+            data={"focus": node_id},
             affected_nodes=[node_id],
         )
 
