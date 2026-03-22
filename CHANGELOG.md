@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-03-23 — v0.3.4
+
+### Bug 修复
+
+| 问题 | 修复 |
+|------|------|
+| `shift_focus` 只写 session_state，不更新 FocusScheduler | `handle_shift_focus` 现在调用 `FocusScheduler.shift_focus()`，L1/L2 正常加载 |
+
+### 改进
+
+| 项 | 内容 |
+|-----|------|
+| `SpineEngine.shift_focus()` | 新增公共方法，MCP tool 不再直接访问私有属性 |
+| `ToolHandler.set_focus_scheduler()` | 新增 setter，和 `set_adapter_registry()` 模式一致 |
+| 类型注解 | `_focus_scheduler: Optional["FocusScheduler"]` |
+| `.gitignore` | `fpms/narratives/` 目录不再跟踪（运行时数据） |
+
+### 测试
+
+- 新增 2 tests（FocusScheduler 路径 + archived 节点 ValueError）
+- 总计 667 tests 全绿
+
+### 发布
+
+- PyPI: focalpoint 0.3.4
+- ClawHub: focalpoint-memory 0.3.4
+- 三平台版本统一
+
+---
+
 ## 2026-03-22 — v0.3.1 Hotfix
 
 ### Bug 修复

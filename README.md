@@ -1,148 +1,48 @@
-# FPMS — Focal Point Memory System
+# FocalPoint — AI Cognitive Operating System
 
-**The attention manager for AI agents.** FPMS gives your AI persistent memory, structured work tracking, and proactive risk alerts — so it never forgets what it's working on.
+**Memory + Attention Management + Workflow Orchestration.** FocalPoint gives your AI persistent memory, a workbench for task preparation, role-based thinking, and proactive risk alerts.
 
 ```bash
-pip install fpms
+pip install focalpoint
 ```
 
 ## The Problem
 
-AI agents forget everything between conversations. Even with 1M token context windows, they can't:
+AI agents forget everything between conversations. Existing memory tools (Mem0, Zep) store conversation snippets. But **remembering what was said is not the same as managing what needs to be done.**
 
-- Remember what they were working on yesterday
-- Notice that a task has been stuck for 3 days
-- Prioritize which information to load when context is limited
-- Track projects across multiple conversations
-
-Existing memory tools (Mem0, Zep) store conversation snippets. But **remembering what was said is not the same as managing what needs to be done.**
-
-## What FPMS Does
-
-FPMS is a **cognitive engine** that manages your AI's attention:
+## What FocalPoint Does
 
 ```
-1. REMEMBER   — Persistent work items across conversations
-2. FOCUS      — Token-budgeted context loading (only load what matters)
-3. ALERT      — Proactive heartbeat: "Task X is blocked for 3 days"
-4. STRUCTURE  — Projects → Milestones → Tasks with dependencies
+1. REMEMBER    — Structured memory across conversations (not just chat history)
+2. PREPARE     — Workbench loads goal, knowledge, context, and subtasks before work
+3. THINK       — Three roles (Strategy/Review/Execution) see different perspectives
+4. REVIEW      — Three-Province protocol: parallel review before major decisions
+5. ALERT       — Proactive heartbeat: "Task X is blocked for 3 days"
+6. SEARCH      — Full-text search across titles, narratives, and knowledge docs
+7. SYNC        — Bidirectional GitHub + Notion integration
 ```
 
 ## How It Compares
 
-| Capability | Mem0 | Zep | Letta | OpenViking | **FPMS** |
-|-----------|------|-----|-------|------------|----------|
-| Conversation memory | Yes | Yes | Yes | Yes | Via prompt rules |
-| Token budget management | No | No | Yes | Yes | **Yes (L0/L1/L2/L_Alert)** |
-| Structured work items | No | No | No | No | **Yes** |
-| Parent-child hierarchy | No | No | No | No | **Yes (unlimited depth)** |
-| Task dependencies | No | No | No | No | **Yes** |
-| Proactive risk alerts | No | No | No | No | **Yes (heartbeat)** |
-| Anti-Amnesia | No | No | No | No | **Yes** |
-| Status lifecycle | No | No | No | No | **Yes (inbox/active/waiting/done)** |
-| Auto-archive | No | No | No | No | **Yes** |
-| External sync (GitHub + Notion) | No | No | No | No | **Yes (bidirectional)** |
-| Write-back to external tools | No | No | No | No | **Yes** |
-
-**Other tools remember what was said. FPMS manages what needs to be done.**
-
-## Who Is FPMS For?
-
-### Solo founders & indie hackers
-You juggle 10 projects across multiple AI conversations. FPMS keeps track so your AI always knows the full picture.
-
-**Example:** You tell Claude "let's work on the auth system" — FPMS loads all related context: the task was created last week, you decided on JWT over sessions, there's a blocking dependency on the user model.
-
-### AI agent builders
-You're building autonomous agents that run for hours. Without FPMS, they lose track of priorities and forget completed work.
-
-**Example:** Your agent runs a heartbeat scan every 10 minutes and discovers: "Task 'Deploy to staging' has been active for 2 days with no progress. 'Fix login bug' is blocked by 'Update user model' which is still in inbox."
-
-### Teams using AI assistants
-Multiple people interact with AI on the same project. FPMS provides a shared memory layer so the AI has continuity regardless of who's talking to it.
-
-**Example:** Alice tells Claude to create a new API endpoint. Bob asks Claude about project status the next day — FPMS shows the endpoint task is active and 60% complete.
-
-## Use Cases
-
-### 1. Project Management with AI Memory
-```
-You: "Create a project for the Q2 product launch"
-AI:  → create_node(title="Q2 Product Launch", node_type="project", is_root=True)
-
-You: "Add tasks: redesign landing page, setup analytics, write launch email"
-AI:  → creates 3 child task nodes under the project
-
-(Next day, new conversation)
-You: "What's the status of the launch?"
-AI:  → bootstrap() loads context
-     → "Q2 Product Launch: 3 tasks, 0 completed. 'Redesign landing page'
-        has been in inbox for 2 days — should I activate it?"
-```
-
-### 2. Decision Tracking
-```
-You: "We're going with Stripe instead of PayPal for payments"
-AI:  → append_log(node_id="payments-task", content="Decision: Stripe over PayPal.
-       Reason: better API, lower fees for international transactions")
-
-(Two weeks later)
-You: "Why did we pick Stripe again?"
-AI:  → get_node() → reads decision log
-     → "You chose Stripe on March 15 because of better API and lower
-        international fees"
-```
-
-### 3. Risk Detection
-```
-(Agent runs heartbeat automatically)
-AI:  → heartbeat() detects:
-     - "Deploy to prod" BLOCKED for 4 days (dependency on code review)
-     - "Update docs" STALE — no activity for 7 days
-     - "Fix memory leak" AT RISK — deadline is tomorrow, still active
-
-AI:  → "I found 3 issues: a blocked deploy, stale docs, and an at-risk
-        memory leak fix due tomorrow. Want me to help prioritize?"
-```
-
-### 4. GitHub Integration
-```
-Your GitHub issues automatically sync into FPMS:
-
-  GitHub Issue #42 "Add dark mode"  →  FPMS node (synced)
-  GitHub Issue #43 "Fix crash"      →  FPMS node (synced)
-
-AI can now reason across your codebase AND your task list:
-  "Issue #42 has been open for 2 weeks and assigned to you.
-   The related PR was merged yesterday — should I close it?"
-```
-
-### 5. Cross-Conversation Continuity
-```
-Conversation 1 (Monday):
-  You: "Start working on the API refactor"
-  AI:  → creates node, status: active
-
-Conversation 2 (Wednesday):
-  You: "Continue where we left off"
-  AI:  → bootstrap() → "You started the API refactor on Monday.
-         Last log: refactored /users endpoint, /orders is next."
-
-Conversation 3 (Friday):
-  You: "How's the refactor going?"
-  AI:  → heartbeat() → "API refactor is active, 2/5 endpoints done.
-         At current pace, you'll finish next Wednesday."
-```
+| Capability | Mem0 | Zep | Letta | CrewAI | Claude | **FocalPoint** |
+|---|---|---|---|---|---|---|
+| Persistent memory | Yes | Yes | Yes | Yes | Yes | **Yes** |
+| Task lifecycle management | - | - | - | Partial | - | **Yes** |
+| Dependency graph (DAG) | - | - | - | - | - | **Yes** |
+| Proactive alerts | - | - | - | - | - | **Yes** |
+| Knowledge docs + inheritance | - | - | - | - | Partial | **Yes** |
+| Role-based context | - | - | - | Partial | - | **Yes** |
+| Decision review workflow | - | - | - | - | - | **Yes** |
+| Full-text search | Vector | Vector | Vector | - | - | **FTS5** |
+| MCP native | - | - | - | - | Proprietary | **Yes** |
+| Zero external deps | Partial | Partial | Yes | Yes | - | **Yes (SQLite only)** |
 
 ## Quick Start
 
-### Option 1: MCP Server (recommended)
-
-Works with Claude Desktop, Claude Code, and OpenClaw.
+### MCP Server (recommended)
 
 ```bash
-pip install fpms
-fpms  # starts MCP server on stdio
+pip install focalpoint
 ```
 
 **Claude Desktop** (`claude_desktop_config.json`):
@@ -150,79 +50,115 @@ fpms  # starts MCP server on stdio
 {
   "mcpServers": {
     "fpms": {
-      "command": "fpms"
+      "command": "focalpoint"
     }
   }
 }
 ```
 
-**OpenClaw** (`openclaw.yaml`):
-```yaml
-mcp_servers:
-  fpms:
-    command: fpms
-```
+**OpenClaw**: Search `focalpoint-memory` in ClawHub and install.
 
-### Option 2: Python API
+22 tools are now available. Start a conversation and say `bootstrap`.
+
+### Python API
 
 ```python
 from fpms.spine import SpineEngine
 
 engine = SpineEngine(db_path="./data/fpms.db")
 
-# Cold start — load memory context
+# Cold start
 bundle = engine.bootstrap()
 
-# Create and manage work items
+# Create work items
 engine.execute_tool("create_node", {
     "title": "Ship MVP", "node_type": "project", "is_root": True
 })
+
+# Prepare work context
+workbench = engine.activate_workbench(node_id, role="execution")
+# Returns: goal, knowledge, context, subtasks, suggested_next, role_prompt
 
 # Proactive risk scan
 alerts = engine.heartbeat()
 ```
 
+## Work Mode
+
+### Workbench — prepare before you work
+
+```
+You: "Work on the payment system task"
+AI calls activate_workbench(node_id, role="execution")
+-> Gets: goal, knowledge docs, context bundle, sorted subtasks,
+   suggested next step, and execution role prompt
+-> AI enters role, reads background, starts working
+```
+
+### Three Roles
+
+| Role | Focus | Sees |
+|------|-------|------|
+| **Strategy** | Should we do this? Priority? | Decisions + feedback |
+| **Review** | Any risks? Historical lessons? | Risk notes + progress |
+| **Execution** | How to build it? | Technical details + progress |
+
+### Three-Province Review
+
+For major decisions: Strategy produces requirements -> Review + Engineer review in parallel -> Both approve or reject -> Max 3 rejections then escalate to human.
+
+### Knowledge Documents
+
+Attach design docs to nodes. Child tasks inherit parent knowledge automatically.
+
+```
+project "Payment System"
+|-- overview.md        <- Project background
+|-- architecture.md    <- Design docs
+|
+\-- task "Implement API"
+    -> Inherits overview + architecture automatically
+```
+
+## Available Tools (22)
+
+| Category | Tools |
+|----------|-------|
+| **Write (11)** | create_node, update_status, update_field, attach/detach_node, add/remove_dependency, append_log, unarchive, set_persistent, set_knowledge |
+| **Read (5)** | get_node, search_nodes, get_knowledge, delete_knowledge, get_assembly_trace |
+| **Cognitive (4)** | bootstrap, heartbeat, activate_workbench, get_context_bundle |
+| **Review (1)** | sansei_review |
+| **Runtime (1)** | shift_focus |
+
 ## Architecture
 
 ```
-AI Agent (Claude / GPT / OpenClaw)
-    |
-    v  MCP Tool Call (stdio)
-+----------------------------------+
-|  mcp_server.py                   |  18 MCP tools (FastMCP)
-|    +------------------------+    |
-|    |    SpineEngine         |    |  Core engine
-|    |  +---------+--------+  |    |
-|    |  | Tools   | Heart- |  |    |
-|    |  | Execute | beat   |  |    |
-|    |  | Store   | Bundle |  |    |
-|    |  | Valid   | Risk   |  |    |
-|    |  +---------+--------+  |    |
-|    |  Adapters (GitHub...)  |    |
-|    +------------------------+    |
-+----------------------------------+
-    |
-    v
-  SQLite + Narrative Markdown
+Brain (LLM)              Spine (FocalPoint engine)
+  |                         |
+  | -- Tool Call -->        | Validate -> Write SQLite -> Narrative -> Audit
+  |                         |
+  | <-- Context ---         | Assemble L0/L1/L2 -> Trim -> Inject prompt
 ```
 
-**18 MCP Tools:** `create_node`, `update_status`, `update_field`, `attach_node`, `detach_node`, `add_dependency`, `remove_dependency`, `append_log`, `unarchive`, `set_persistent`, `shift_focus`, `expand_context`, `get_node`, `search_nodes`, `get_assembly_trace`, `heartbeat`, `bootstrap`, `get_context_bundle`
+**Brain** = LLM. Only reads context and issues Tool Calls.
+**Spine** = Deterministic engine. All logic here. LLM never touches storage directly.
 
-## Key Concepts
+Storage: Pure SQLite. No vector DB, no Redis, no PostgreSQL.
 
-| Concept | Description |
-|---------|-------------|
-| **Node** | A work item (project, task, goal, milestone) with status lifecycle |
-| **Heartbeat** | Periodic scan that detects blocked, stale, and at-risk nodes |
-| **Context Bundle** | Token-budgeted payload (L0 dashboard + L1 neighborhood + L2 detail) |
-| **Anti-Amnesia** | Mechanism that prevents AI from forgetting active work mid-conversation |
-| **Rollup** | Child task completion automatically bubbles up to parent nodes |
-| **Narrative** | Markdown log of decisions, events, and progress for each node |
+## Stats
+
+| Metric | Value |
+|--------|-------|
+| Tests | 667 |
+| MCP Tools | 22 |
+| External dependencies | 0 |
+| Cold start | < 100ms |
+| Supported LLMs | Any (via MCP) |
 
 ## Requirements
 
 - Python 3.10+
-- No external services needed — runs 100% locally on SQLite
+- No external services — runs 100% locally on SQLite
 
 ## License
 
@@ -230,7 +166,8 @@ AI Agent (Claude / GPT / OpenClaw)
 
 ## Links
 
-- [GitHub](https://github.com/jeff0052/founderOSclaudecode)
-- [PyPI](https://pypi.org/project/fpms/)
-- [ClawHub](https://clawhub.ai/skills/fpms-memory)
-- [Usage Guide](docs/USAGE-GUIDE.md)
+- [PyPI](https://pypi.org/project/focalpoint/)
+- [ClawHub](https://lobehub.com/skills/openclaw-skills-focalpoint-memory)
+- [Product Introduction](docs/marketing/PRODUCT-INTRO.md)
+- [Usage Guide](docs/marketing/USAGE-GUIDE.md)
+- [Work Mode Guide](docs/WORK-MODE-GUIDE.md)
