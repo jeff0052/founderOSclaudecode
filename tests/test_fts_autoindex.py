@@ -90,3 +90,105 @@ class TestFTSAutoIndexNarrative:
         # Narrative should also be searchable
         result = engine.execute_tool("search_nodes", {"query": "connection pooling"})
         assert node_id in [n["id"] for n in result.data["nodes"]]
+
+
+from fpms.spine import knowledge as knowledge_mod
+
+
+class TestFTSAutoIndexKnowledge:
+    def test_knowledge_searchable_after_index(self, engine):
+        """After set_knowledge + index, content should be findable via search."""
+        result = engine.execute_tool("create_node", {
+            "title": "Auth System", "is_root": True, "node_type": "project",
+        })
+        node_id = result.data["id"]
+
+        knowledge_mod.set_knowledge(
+            engine._knowledge_dir, node_id, "architecture",
+            "## Architecture\n\nUse JWT tokens with RSA256 signing.",
+        )
+        engine.store.index_knowledge(node_id, engine._knowledge_dir)
+
+        result = engine.execute_tool("search_nodes", {"query": "JWT RSA256"})
+        assert result.success
+        found_ids = [n["id"] for n in result.data["nodes"]]
+        assert node_id in found_ids
+
+    def test_delete_knowledge_removes_from_search_index(self, engine):
+        """After delete_knowledge + re-index, content should no longer be findable."""
+        result = engine.execute_tool("create_node", {
+            "title": "Cache Layer", "is_root": True,
+        })
+        node_id = result.data["id"]
+
+        knowledge_mod.set_knowledge(
+            engine._knowledge_dir, node_id, "overview",
+            "Memcached cluster with consistent hashing",
+        )
+        engine.store.index_knowledge(node_id, engine._knowledge_dir)
+
+        # Verify searchable
+        result = engine.execute_tool("search_nodes", {"query": "Memcached"})
+        assert node_id in [n["id"] for n in result.data["nodes"]]
+
+        # Delete and re-index
+        knowledge_mod.delete_knowledge(engine._knowledge_dir, node_id, "overview")
+        engine.store.index_knowledge(node_id, engine._knowledge_dir)
+
+        # Should no longer be findable
+        result = engine.execute_tool("search_nodes", {"query": "Memcached"})
+        found_ids = [n["id"] for n in result.data["nodes"]]
+        assert node_id not in found_ids
+
+    def test_knowledge_index_preserves_narrative(self, engine):
+        """index_knowledge must NOT wipe narrative_text from FTS index."""
+        result = engine.execute_tool("create_node", {
+            "title": "Mixed Node", "is_root": True,
+        })
+        node_id = result.data["id"]
+
+        # Add narrative first
+        engine.execute_tool("append_log", {
+            "node_id": node_id, "content": "Elasticsearch cluster setup",
+            "category": "technical",
+        })
+
+        # Now add knowledge — should not wipe narrative
+        knowledge_mod.set_knowledge(
+            engine._knowledge_dir, node_id, "arch", "GraphQL API gateway",
+        )
+        engine.store.index_knowledge(node_id, engine._knowledge_dir)
+
+        # Both should be searchable
+        r1 = engine.execute_tool("search_nodes", {"query": "Elasticsearch"})
+        assert node_id in [n["id"] for n in r1.data["nodes"]]
+
+        r2 = engine.execute_tool("search_nodes", {"query": "GraphQL"})
+        assert node_id in [n["id"] for n in r2.data["nodes"]]
+
+
+class TestDeleteKnowledgeMCPTool:
+    def test_delete_knowledge_function_importable(self):
+        """The delete_knowledge MCP tool function should be importable."""
+        from fpms.mcp_server import delete_knowledge
+        assert callable(delete_knowledge)
+
+    def test_delete_knowledge_removes_file(self, engine):
+        """delete_knowledge should remove the knowledge file."""
+        result = engine.execute_tool("create_node", {
+            "title": "Test Project", "is_root": True,
+        })
+        node_id = result.data["id"]
+
+        knowledge_mod.set_knowledge(
+            engine._knowledge_dir, node_id, "overview", "Test content",
+        )
+
+        # Verify file exists
+        import os
+        filepath = os.path.join(engine._knowledge_dir, node_id, "overview.md")
+        assert os.path.exists(filepath)
+
+        # Delete via knowledge module directly
+        knowledge_mod.delete_knowledge(engine._knowledge_dir, node_id, "overview")
+        assert not os.path.exists(filepath)

@@ -457,6 +457,11 @@ def set_knowledge(node_id: str, doc_type: str, content: str) -> str:
     if node is None:
         return json.dumps({"success": False, "error": f"Node '{node_id}' not found"})
     knowledge_mod.set_knowledge(engine._knowledge_dir, node_id, doc_type, content)
+    # Update FTS index
+    try:
+        engine.store.index_knowledge(node_id, engine._knowledge_dir)
+    except Exception:
+        pass  # FTS update failure is non-fatal
     return json.dumps({"success": True, "node_id": node_id, "doc_type": doc_type})
 
 
@@ -481,6 +486,29 @@ def get_knowledge(
         store=engine.store, inherit=inherit,
     )
     return json.dumps({"success": True, "knowledge": result}, ensure_ascii=False)
+
+
+@mcp.tool()
+@_safe_tool
+def delete_knowledge(node_id: str, doc_type: str) -> str:
+    """Delete a knowledge document from a node.
+
+    Args:
+        node_id: Target node ID
+        doc_type: Document type to delete (e.g. overview, requirements, architecture)
+    """
+    from fpms.spine import knowledge as knowledge_mod
+    engine = _get_engine()
+    node = engine.store.get_node(node_id)
+    if node is None:
+        return json.dumps({"success": False, "error": f"Node '{node_id}' not found"})
+    knowledge_mod.delete_knowledge(engine._knowledge_dir, node_id, doc_type)
+    # Update FTS index
+    try:
+        engine.store.index_knowledge(node_id, engine._knowledge_dir)
+    except Exception:
+        pass  # FTS update failure is non-fatal
+    return json.dumps({"success": True, "node_id": node_id, "doc_type": doc_type, "deleted": True})
 
 
 @mcp.tool()
