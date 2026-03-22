@@ -486,12 +486,66 @@ class Store:
             ORDER BY rank
             LIMIT ?
         """
+        # Convert multi-token queries to OR semantics so any matching token
+        # returns results. This handles mixed Chinese/ASCII text where the
+        # unicode61 tokenizer may not split continuous CJK characters.
+        fts_query = self._build_fts_query(query)
         try:
-            rows = self._conn.execute(sql, (query, limit)).fetchall()
+            rows = self._conn.execute(sql, (fts_query, limit)).fetchall()
         except Exception:
             # FTS query syntax error — fall back to LIKE
             return self._search_like_fallback(query, limit)
-        return [_row_to_node(r, cols) for r in rows]
+
+        if rows:
+            return [_row_to_node(r, cols) for r in rows]
+
+        # If FTS returned nothing and query has non-ASCII (CJK) characters,
+        # fall back to content-aware LIKE search. The unicode61 tokenizer
+        # cannot index continuous CJK character sequences.
+        if any(ord(c) > 127 for c in query):
+            return self._search_like_content(query, limit)
+
+        return []
+
+    @staticmethod
+    def _build_fts_query(query: str) -> str:
+        """Build an FTS5 OR query from a whitespace-separated query string.
+
+        Splits on whitespace and joins tokens with OR so that documents
+        matching ANY token are returned. Single-token queries are passed
+        through unchanged.
+        """
+        tokens = query.split()
+        if len(tokens) <= 1:
+            return query
+        return " OR ".join(tokens)
+
+    def _search_like_content(self, query: str, limit: int) -> List[Node]:
+        """LIKE-based search across fts_index content columns for CJK queries."""
+        cols = self._node_columns()
+        tokens = query.split()
+        matched_ids: set = set()
+        for token in tokens:
+            pattern = f"%{token}%"
+            sql = """
+                SELECT DISTINCT f.node_id FROM fts_index f
+                JOIN nodes n ON n.id = f.node_id
+                WHERE n.archived_at IS NULL
+                  AND (f.title LIKE ? OR f.narrative_text LIKE ? OR f.knowledge_text LIKE ?)
+            """
+            rows = self._conn.execute(sql, (pattern, pattern, pattern)).fetchall()
+            for row in rows:
+                matched_ids.add(row[0])
+            if len(matched_ids) >= limit:
+                break
+        if not matched_ids:
+            return []
+        placeholders = ",".join("?" * len(matched_ids))
+        node_rows = self._conn.execute(
+            f"SELECT * FROM nodes WHERE id IN ({placeholders}) AND archived_at IS NULL LIMIT ?",
+            (*matched_ids, limit),
+        ).fetchall()
+        return [_row_to_node(r, cols) for r in node_rows]
 
     def _ensure_fts_indexed(self) -> None:
         """Ensure all non-archived nodes have an FTS entry (incremental)."""
@@ -513,10 +567,15 @@ class Store:
         text = narrative_mod.read_narrative(narratives_dir, node_id)
         node = self.get_node(node_id)
         title = node.title if node else ""
+        # Preserve existing knowledge_text
+        existing = self._conn.execute(
+            "SELECT knowledge_text FROM fts_index WHERE node_id=?", (node_id,)
+        ).fetchone()
+        knowledge_text = existing[0] if existing else ""
         self._conn.execute("DELETE FROM fts_index WHERE node_id=?", (node_id,))
         self._conn.execute(
             "INSERT INTO fts_index (node_id, title, narrative_text, knowledge_text) VALUES (?,?,?,?)",
-            (node_id, title, text or "", ""),
+            (node_id, title, text or "", knowledge_text),
         )
 
     def index_knowledge(self, node_id: str, knowledge_dir: str) -> None:

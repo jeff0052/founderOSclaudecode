@@ -547,6 +547,13 @@ class ToolHandler:
         )
         # Important: do NOT reset Anti-Amnesia timer (don't touch session_state)
 
+        # Post-commit: update FTS index
+        if ok:
+            try:
+                self.store.index_narrative(node_id, self.narratives_dir)
+            except Exception:
+                pass  # FTS update failure is non-fatal
+
         return ToolResult(
             success=ok,
             command_id=command_id,
