@@ -5,6 +5,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
@@ -16,15 +17,16 @@ def append_narrative(
     event_type: str,
     content: str,
     mentions: Optional[List[str]] = None,
+    category: str = "general",
 ) -> bool:
     """追加一条叙事到 narratives/{node_id}.md。
-    格式: ## {timestamp} [{event_type}]\\n{content}
+    格式: ## {timestamp} [{event_type}] [{category}]\\n{content}
     返回是否写入成功。失败时不抛异常，返回 False。"""
     try:
         os.makedirs(narratives_dir, exist_ok=True)
         filepath = os.path.join(narratives_dir, f"{node_id}.md")
 
-        block = f"## {timestamp} [{event_type}]\n{content}\n"
+        block = f"## {timestamp} [{event_type}] [{category}]\n{content}\n"
         if mentions:
             block += f"Mentions: {', '.join(mentions)}\n"
         block += "\n"
@@ -40,13 +42,28 @@ def append_narrative(
         return False
 
 
+def _extract_category(entry: str) -> Optional[str]:
+    """Extract category from an entry header line.
+    New format: ## {timestamp} [{event_type}] [{category}]
+    Old format: ## {timestamp} [{event_type}]
+    Returns category string if new format, None if old format."""
+    if not entry.startswith("## "):
+        return None
+    header_line = entry.split("\n", 1)[0]
+    brackets = re.findall(r'\[([^\]]+)\]', header_line)
+    if len(brackets) >= 2:
+        return brackets[-1]
+    return None
+
+
 def read_narrative(
     narratives_dir: str,
     node_id: str,
     last_n_entries: Optional[int] = None,
     since_days: Optional[int] = None,
+    categories: Optional[List[str]] = None,
 ) -> str:
-    """读取叙事内容。支持按条数或天数截取。"""
+    """读取叙事内容。支持按条数或天数截取，以及按 category 过滤。"""
     filepath = os.path.join(narratives_dir, f"{node_id}.md")
     if not os.path.exists(filepath):
         return ""
@@ -84,6 +101,17 @@ def read_narrative(
             if ts is not None and ts >= cutoff:
                 filtered.append(entry)
         entries = filtered
+
+    # Filter by categories
+    if categories is not None:
+        cat_set = set(categories)
+        filtered_cat = []
+        for entry in entries:
+            cat = _extract_category(entry)
+            if cat is None or cat in cat_set:
+                # None = old format → include always
+                filtered_cat.append(entry)
+        entries = filtered_cat
 
     # Filter by last_n_entries
     if last_n_entries is not None and len(entries) > last_n_entries:

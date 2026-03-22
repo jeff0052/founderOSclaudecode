@@ -11,6 +11,7 @@ from typing import List
 import pytest
 
 from fpms.spine.narrative import (
+    _extract_category,
     append_narrative,
     read_compressed,
     read_narrative,
@@ -34,7 +35,7 @@ class TestAppendNarrative:
         assert ok is True
         filepath = os.path.join(narr_dir, "node-1.md")
         content = open(filepath).read()
-        assert "## 2025-01-15T10:00:00Z [created]" in content
+        assert "## 2025-01-15T10:00:00Z [created] [general]" in content
         assert "Hello world" in content
 
     def test_mentions_line(self, narr_dir):
@@ -206,3 +207,87 @@ class TestConcurrentAppend:
         content = open(os.path.join(narr_dir, "concurrent.md")).read()
         entry_count = content.count("## ")
         assert entry_count == n_threads * n_per_thread
+
+
+# ── narrative category ───────────────────────────────────────────────────
+
+
+class TestNarrativeCategory:
+    def test_append_with_category_in_header(self, narr_dir):
+        ok = append_narrative(
+            narr_dir, "node-cat1", "2025-01-15T10:00:00Z", "created", "Decided something",
+            category="decision",
+        )
+        assert ok is True
+        content = open(os.path.join(narr_dir, "node-cat1.md")).read()
+        assert "[decision]" in content
+
+    def test_append_default_category_is_general(self, narr_dir):
+        append_narrative(narr_dir, "node-cat2", "2025-01-15T10:00:00Z", "created", "No category")
+        content = open(os.path.join(narr_dir, "node-cat2.md")).read()
+        assert "[general]" in content
+
+    def test_append_all_valid_categories(self, narr_dir):
+        from fpms.spine.models import NARRATIVE_CATEGORIES
+        for cat in NARRATIVE_CATEGORIES:
+            ok = append_narrative(
+                narr_dir, f"node-{cat}", "2025-01-15T10:00:00Z", "log", f"Entry for {cat}",
+                category=cat,
+            )
+            assert ok is True
+            content = open(os.path.join(narr_dir, f"node-{cat}.md")).read()
+            assert f"[{cat}]" in content
+
+    def test_read_narrative_filter_by_category(self, narr_dir):
+        append_narrative(narr_dir, "node-filt", "2025-01-15T10:00:00Z", "log", "Decision entry", category="decision")
+        append_narrative(narr_dir, "node-filt", "2025-01-15T11:00:00Z", "log", "Risk entry", category="risk")
+        append_narrative(narr_dir, "node-filt", "2025-01-15T12:00:00Z", "log", "Progress entry", category="progress")
+
+        result = read_narrative(narr_dir, "node-filt", categories=["decision"])
+        assert "Decision entry" in result
+        assert "Risk entry" not in result
+        assert "Progress entry" not in result
+
+    def test_read_narrative_filter_multiple_categories(self, narr_dir):
+        append_narrative(narr_dir, "node-multi", "2025-01-15T10:00:00Z", "log", "Decision entry", category="decision")
+        append_narrative(narr_dir, "node-multi", "2025-01-15T11:00:00Z", "log", "Risk entry", category="risk")
+        append_narrative(narr_dir, "node-multi", "2025-01-15T12:00:00Z", "log", "Progress entry", category="progress")
+
+        result = read_narrative(narr_dir, "node-multi", categories=["decision", "risk"])
+        assert "Decision entry" in result
+        assert "Risk entry" in result
+        assert "Progress entry" not in result
+
+    def test_read_narrative_no_category_filter_returns_all(self, narr_dir):
+        append_narrative(narr_dir, "node-all", "2025-01-15T10:00:00Z", "log", "Entry A", category="decision")
+        append_narrative(narr_dir, "node-all", "2025-01-15T11:00:00Z", "log", "Entry B", category="risk")
+
+        result = read_narrative(narr_dir, "node-all")
+        assert "Entry A" in result
+        assert "Entry B" in result
+
+    def test_backward_compat_old_entries_without_category(self, narr_dir):
+        """Old format entries (no category bracket) are always included in filtered reads."""
+        filepath = os.path.join(narr_dir, "node-compat.md")
+        import os as _os
+        _os.makedirs(narr_dir, exist_ok=True)
+        # Write an old-format entry manually (no category bracket)
+        with open(filepath, "w") as f:
+            f.write("## 2025-01-15T10:00:00Z [log]\nOld format entry\n\n")
+        # Now append a new entry with category
+        append_narrative(narr_dir, "node-compat", "2025-01-15T11:00:00Z", "log", "New format entry", category="decision")
+
+        # Filter by decision: should include new entry AND old entry (backward compat)
+        result = read_narrative(narr_dir, "node-compat", categories=["decision"])
+        assert "New format entry" in result
+        assert "Old format entry" in result
+
+    def test_extract_category_new_format(self, narr_dir):
+        entry = "## 2025-01-15T10:00:00Z [log] [decision]\nSome content"
+        cat = _extract_category(entry)
+        assert cat == "decision"
+
+    def test_extract_category_old_format_returns_none(self, narr_dir):
+        entry = "## 2025-01-15T10:00:00Z [log]\nSome content"
+        cat = _extract_category(entry)
+        assert cat is None

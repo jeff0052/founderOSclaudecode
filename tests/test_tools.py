@@ -484,6 +484,56 @@ class TestAppendLog:
 
 
 # ===========================================================================
+# 8b. append_log — category field
+# ===========================================================================
+
+class TestAppendLogCategory:
+    def test_append_log_with_category(self, handler, store, tmp_dirs):
+        node = _make_node(store, title="CatNode")
+        result = handler.handle("append_log", {
+            "node_id": node.id,
+            "content": "Made a decision",
+            "event_type": "log",
+            "category": "decision",
+            "command_id": "cmd-cat-1",
+        })
+        assert result.success is True
+        assert result.data["category"] == "decision"
+        _, _, narratives_dir = tmp_dirs
+        filepath = os.path.join(narratives_dir, f"{node.id}.md")
+        text = open(filepath).read()
+        assert "[decision]" in text
+
+    def test_append_log_default_category_general(self, handler, store, tmp_dirs):
+        node = _make_node(store, title="DefaultCatNode")
+        result = handler.handle("append_log", {
+            "node_id": node.id,
+            "content": "No category specified",
+            "event_type": "log",
+            "command_id": "cmd-cat-2",
+        })
+        assert result.success is True
+        assert result.data["category"] == "general"
+        _, _, narratives_dir = tmp_dirs
+        filepath = os.path.join(narratives_dir, f"{node.id}.md")
+        text = open(filepath).read()
+        assert "[general]" in text
+
+    def test_append_log_invalid_category_rejected(self, handler, store):
+        node = _make_node(store, title="BadCatNode")
+        result = handler.handle("append_log", {
+            "node_id": node.id,
+            "content": "Some content",
+            "event_type": "log",
+            "category": "invalid_cat",
+            "command_id": "cmd-cat-3",
+        })
+        assert result.success is False
+        assert "Invalid category" in result.error
+        assert "invalid_cat" in result.error
+
+
+# ===========================================================================
 # 9. unarchive
 # ===========================================================================
 

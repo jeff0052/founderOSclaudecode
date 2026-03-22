@@ -508,6 +508,7 @@ class ToolHandler:
         node_id = params.get("node_id")
         content = params.get("content", "")
         event_type = params.get("event_type", "log")
+        category = params.get("category", "general")
 
         if not node_id:
             return ToolResult(
@@ -526,6 +527,15 @@ class ToolHandler:
                 suggestion="Check node_id or use search_nodes to find the correct id",
             )
 
+        from .models import NARRATIVE_CATEGORIES
+        if category not in NARRATIVE_CATEGORIES:
+            return ToolResult(
+                success=False,
+                command_id=command_id,
+                error=f"Invalid category '{category}'. Must be one of: {sorted(NARRATIVE_CATEGORIES)}",
+                suggestion=f"Valid categories: {sorted(NARRATIVE_CATEGORIES)}",
+            )
+
         now = _now_iso()
         ok = self.narrative.append_narrative(
             self.narratives_dir,
@@ -533,13 +543,14 @@ class ToolHandler:
             now,
             event_type,
             content,
+            category=category,
         )
         # Important: do NOT reset Anti-Amnesia timer (don't touch session_state)
 
         return ToolResult(
             success=ok,
             command_id=command_id,
-            data={"node_id": node_id, "event_type": event_type, "appended": ok},
+            data={"node_id": node_id, "event_type": event_type, "appended": ok, "category": category},
             affected_nodes=[node_id],
             error=None if ok else "Failed to append narrative",
             suggestion=None if ok else "Check file system permissions for narratives directory",

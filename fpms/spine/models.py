@@ -8,6 +8,10 @@ from typing import Optional
 from pydantic import BaseModel, field_validator
 
 
+# Narrative categories for log classification
+NARRATIVE_CATEGORIES = {"decision", "feedback", "risk", "technical", "progress", "general"}
+
+
 # ---------------------------------------------------------------------------
 # Pydantic Models (Tool Call 输入校验)
 # ---------------------------------------------------------------------------
