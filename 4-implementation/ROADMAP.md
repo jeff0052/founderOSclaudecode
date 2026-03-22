@@ -111,7 +111,7 @@ v0.4+
 
 | 交付物 | 状态 |
 |--------|------|
-| MCP Server 22 tools（FastMCP） | ✅ |
+| MCP Server 23 tools（FastMCP） | ✅ |
 | Claude Desktop 接入 | ✅ |
 | PyPI 发布（`pip install focalpoint`） | ✅ v0.3.1 |
 | ClawHub 发布 | ✅ |
@@ -137,7 +137,7 @@ Milestone 总结：`docs/milestones/2026-03-22-v03-work-mode-complete.md`
 | **全文搜索** — SQLite FTS5 | ✅ |
 | **角色 prompt** — strategy/review/execution | ✅ |
 | **角色过滤** — bundle 按 role 过滤 narrative + token 预算 | ✅ |
-| **MCP tools** — 新增 4 个 + 更新 3 个（共 22 tools） | ✅ |
+| **MCP tools** — 新增 4 个 + 更新 3 个（共 23 tools） | ✅ |
 | **FTS 自动索引** — append_log/set_knowledge 自动更新搜索索引 | ✅ v0.3.1 |
 | **delete_knowledge** — 删除知识文档 MCP tool | ✅ v0.3.1 |
 | **查询清理** — FTS5/LIKE 特殊字符处理 + 日志记录 | ✅ v0.3.1 |

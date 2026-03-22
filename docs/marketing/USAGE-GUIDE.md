@@ -367,7 +367,7 @@ AI：append_log(category="progress", "今日进度：完成了 X、Y、Z")
 
 ---
 
-## 22 个 MCP Tools 速查
+## 23 个 MCP Tools 速查
 
 ### 写入
 | 工具 | 功能 |

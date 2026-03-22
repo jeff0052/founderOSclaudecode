@@ -58,7 +58,7 @@ pip install focalpoint
 
 **OpenClaw**: Search `focalpoint-memory` in ClawHub and install.
 
-22 tools are now available. Start a conversation and say `bootstrap`.
+23 tools are now available. Start a conversation and say `bootstrap`.
 
 ### Python API
 
@@ -120,7 +120,7 @@ project "Payment System"
     -> Inherits overview + architecture automatically
 ```
 
-## Available Tools (22)
+## Available Tools (23)
 
 | Category | Tools |
 |----------|-------|
@@ -150,7 +150,7 @@ Storage: Pure SQLite. No vector DB, no Redis, no PostgreSQL.
 | Metric | Value |
 |--------|-------|
 | Tests | 667 |
-| MCP Tools | 22 |
+| MCP Tools | 23 |
 | External dependencies | 0 |
 | Cold start | < 100ms |
 | Supported LLMs | Any (via MCP) |

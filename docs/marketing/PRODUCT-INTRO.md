@@ -142,7 +142,7 @@ knowledge/{id}/*.md ← 知识文档
 
 零外部依赖。没有向量库、没有 Redis、没有 PostgreSQL。一个 SQLite 文件就是全部。
 
-### 22 个 MCP Tools
+### 23 个 MCP Tools
 
 | 类别 | 工具 |
 |------|------|
@@ -158,8 +158,8 @@ knowledge/{id}/*.md ← 知识文档
 
 | 指标 | 数值 |
 |------|------|
-| 测试覆盖 | 665 tests |
-| MCP Tools | 22 |
+| 测试覆盖 | 667 tests |
+| MCP Tools | 23 |
 | 外部依赖 | 0（纯 SQLite） |
 | 冷启动时间 | < 100ms |
 | 支持的 LLM | 任意（通过 MCP 协议） |

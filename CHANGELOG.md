@@ -59,7 +59,7 @@
 | 文档 | 内容 |
 |------|------|
 | `docs/marketing/PRODUCT-INTRO.md` | 产品介绍 + 竞品分析（Mem0/Zep/Letta/CrewAI/openclaw-pm） |
-| `docs/marketing/USAGE-GUIDE.md` | 完整使用指南 + 22 tools 速查 |
+| `docs/marketing/USAGE-GUIDE.md` | 完整使用指南 + 23 tools 速查 |
 | `docs/WORK-MODE-GUIDE.md` | Work Mode 使用方法（工作台 + 三省 + 知识 + 分类日志） |
 
 ### 测试
@@ -70,7 +70,7 @@
 ### 发布
 
 - PyPI: focalpoint 0.3.1
-- ClawHub: focalpoint-memory 0.3.1（22 tools）
+- ClawHub: focalpoint-memory 0.3.1（23 tools）
 - MCP Server instructions 加入 Work Mode Protocol 使用指南
 
 ---

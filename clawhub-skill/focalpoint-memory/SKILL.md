@@ -81,7 +81,7 @@ mcp_servers:
 
 ### 3. Restart OpenClaw
 
-That's it. 22 tools are now available.
+That's it. 23 tools are now available.
 
 ## How It Works
 
@@ -207,7 +207,7 @@ AI:  search_nodes(query="caching decisions")
 -> Finds nodes by title, narrative content, and knowledge docs
 ```
 
-## Available Tools (22)
+## Available Tools (23)
 
 ### Write (11)
 | Tool | What it does |
@@ -267,7 +267,7 @@ Follow these rules in EVERY conversation:
 | Metric | Value |
 |--------|-------|
 | Tests | 665 |
-| MCP Tools | 22 |
+| MCP Tools | 23 |
 | External dependencies | 0 (pure SQLite) |
 | Cold start | < 100ms |
 | Supported LLMs | Any (via MCP protocol) |
