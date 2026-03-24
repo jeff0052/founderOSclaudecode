@@ -1,7 +1,7 @@
 ---
 name: focalpoint-memory
 description: "FocalPoint — AI cognitive operating system. Memory + attention management + workflow orchestration. Workbench prepares context before tasks. Three-Province review ensures quality. Never lose track of projects again."
-version: "0.3.4"
+version: "0.4.0"
 metadata:
   openclaw:
     emoji: "🧠"
