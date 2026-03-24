@@ -36,6 +36,7 @@ Repository = "https://github.com/jeff0052/founderOSclaudecode"
 [project.scripts]
 focalpoint = "fpms.mcp_server:main"
 fpms = "fpms.mcp_server:main"
+focalpoint-stats = "fpms.analytics:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["fpms"]

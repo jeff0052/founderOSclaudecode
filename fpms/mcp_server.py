@@ -553,6 +553,30 @@ def sansei_review(
 
 
 # =====================================================================
+# Analytics Tools (1)
+# =====================================================================
+
+
+@mcp.tool()
+@_safe_tool
+def get_stats() -> str:
+    """Get FocalPoint usage analytics report.
+
+    Returns node stats, tool usage, token efficiency, narrative and knowledge counts.
+    Call this to monitor system health and usage patterns.
+    """
+    from fpms.analytics import generate_report
+    engine = _get_engine()
+    report = generate_report(
+        db_path=engine.store._conn.execute("PRAGMA database_list").fetchone()[2],
+        events_path=engine.store._events_path,
+        narratives_dir=engine._narratives_dir,
+        knowledge_dir=engine._knowledge_dir,
+    )
+    return json.dumps(report, ensure_ascii=False, default=str)
+
+
+# =====================================================================
 # Entry point
 # =====================================================================
 
