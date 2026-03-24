@@ -4,6 +4,47 @@
 
 ---
 
+## 2026-03-24 — v0.4.0 Analytics Dashboard
+
+### 新增
+
+| 项 | 内容 |
+|-----|------|
+| `fpms/analytics.py` | 完整分析工具：报告生成器 + 健康评分 + HTML Dashboard + CLI |
+| 健康评分 | 5 维度 0-100 评分（Node 管理、记录习惯、知识沉淀、Token 效率、工具利用） |
+| HTML Dashboard | 自包含 HTML 面板：评分环、统计卡片、工具/状态/分类分布图、每日活动 |
+| 节点浏览器 | 交互式节点树 + 搜索 + 点击查看叙事历史和知识文档 |
+| `get_stats` MCP tool | Desktop 里调用获取使用报告（第 24 个 tool） |
+| `focalpoint-stats` CLI | `--html`（HTML 面板）/ `--json`（JSON）/ 默认文本报告 |
+
+### 架构
+
+| 项 | 内容 |
+|-----|------|
+| `generate_report(engine=)` | 通过 SpineEngine 获取所有路径，不硬编码 |
+| `_resolve_paths()` | 单一路径解析逻辑：engine 优先，env vars fallback |
+| CLI | 内部实例化 SpineEngine，与 MCP server 读同一份数据 |
+
+### 调研
+
+| 项 | 内容 |
+|-----|------|
+| gstack `/office-hours` | 调研 Garry Tan 的 6 Forcing Questions，为 Interview 流程设计提供参考 |
+| 付费模型调研 | 参考 gstack（MIT 免费）、Mem0（开源+云服务）、CrewAI（开源+企业版）模式 |
+
+### 测试
+
+- 新增 23 tests（analytics 17 + health score 5 + resolve_paths 1）
+- 总计 690 tests 全绿
+
+### 发布
+
+- PyPI: focalpoint 0.4.0
+- ClawHub: focalpoint-memory 0.4.0
+- GitHub: public repo
+
+---
+
 ## 2026-03-23 — v0.3.4
 
 ### Bug 修复

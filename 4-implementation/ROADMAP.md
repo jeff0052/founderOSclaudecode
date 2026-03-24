@@ -144,11 +144,58 @@ Milestone 总结：`docs/milestones/2026-03-22-v03-work-mode-complete.md`
 
 验收：665 tests 全绿。v0.3.1 版本。
 
+### v0.3.4: Bug 修复 + 产品化 ✅
+
+**目标**：从"能跑的代码"变成"能发布的产品"。
+
+| 交付物 | 状态 |
+|--------|------|
+| shift_focus bug 修复（FocusScheduler 状态同步） | ✅ |
+| FTS 自动索引修复（narrative + knowledge） | ✅ |
+| 查询清理（FTS5 + LIKE 特殊字符） | ✅ |
+| README/SKILL.md 全面重写 | ✅ |
+| Marketing 文档（产品介绍 + 使用指南 + 竞品分析） | ✅ |
+| GitHub 公开 | ✅ |
+| PyPI `.pypirc` 自动发布 | ✅ |
+
+验收：667 tests 全绿。
+
+### v0.4.0: Analytics Dashboard ✅
+
+**目标**：让用户能衡量系统使用质量。
+
+| 交付物 | 状态 |
+|--------|------|
+| **analytics.py** — 报告生成器 + 健康评分 | ✅ |
+| **健康评分** — 5 维度 0-100 分 | ✅ |
+| **HTML Dashboard** — 可视化面板 + 节点浏览器 | ✅ |
+| **CLI** — `focalpoint-stats --html / --json` | ✅ |
+| **MCP tool** — `get_stats` | ✅ |
+| 架构对齐 — 通过 SpineEngine 读取路径 | ✅ |
+
+验收：690 tests 全绿。24 MCP tools。
+
+---
+
+## 第二层+：工作流增强（下一步）
+
+### v0.5: Interview + 自动记录
+
+**目标**：提升三省输入质量 + 减少用户手动操作。
+
+| 方向 | 说明 | 灵感来源 |
+|------|------|---------|
+| Interview 流程 | 在三省之前用结构化提问搞清需求 | gstack /office-hours |
+| AI 自动记录 | 对话中自动提取决策/风险/进度存入 narrative | OpenViking |
+| Token efficiency 优化 | 基于 analytics 数据按需加载 context | 真实使用数据驱动 |
+
+前置条件：用真实项目跑 v0.4.0 收集数据 + health score 基线
+
 ---
 
 ## 第三层：协作层（未来）
 
-### v0.4+: 多 Agent 协作
+### v0.6+: 多 Agent 协作
 
 **目标**：让多个 AI agent 像团队一样协作。
 
@@ -159,7 +206,7 @@ Milestone 总结：`docs/milestones/2026-03-22-v03-work-mode-complete.md`
 | 并发控制 | 多 agent 同时写入时的冲突处理 |
 | Agent 间通信 | 一个 agent 的产出自动传递给下一个 |
 
-前置条件：v0.3 完成 ✅ + 实际使用验证
+前置条件：v0.5 完成 + Interview/自动记录验证
 
 ---
 
@@ -191,9 +238,14 @@ v0 (Store/DAG/Tools) ✅
 
 第二层：知识层 + 工作台
                           └─► v0.3 (Work Mode) ✅
+                               └─► v0.3.4 (稳定化) ✅
+                                    └─► v0.4.0 (Analytics) ✅
+
+第二层+：工作流增强
+                                         └─► v0.5 (Interview + 自动记录) ← 下一步
 
 第三层：协作层
-                               └─► v0.4+ (多 Agent) ← 下一步
+                                              └─► v0.6+ (多 Agent)
 ```
 
 ---
@@ -207,3 +259,5 @@ v0 (Store/DAG/Tools) ✅
 | 2026-03-22 | v3 | 产品方向升级为 AI 认知操作系统。新增第二层（v0.3 Work Mode）和第三层（v0.4+ 多 Agent）。M2/M3 部分交付，剩余延后。 |
 | 2026-03-22 | v4 | v0.3 Work Mode 开发完成。657 tests。下一步：v0.4 多 Agent 协作。 |
 | 2026-03-22 | v5 | v0.3.1 hotfix：FTS 自动索引、delete_knowledge MCP tool、查询清理。665 tests。22 MCP tools。PyPI/ClawHub 已发布。 |
+| 2026-03-23 | v6 | v0.3.4 稳定化：shift_focus 修复、产品化文档、GitHub 公开。667 tests。 |
+| 2026-03-24 | v7 | v0.4.0 Analytics Dashboard：健康评分 + HTML 面板 + 节点浏览器 + MCP tool。690 tests。24 tools。gstack Interview 调研完成。 |
