@@ -83,6 +83,27 @@ workbench = engine.activate_workbench(node_id, role="execution")
 alerts = engine.heartbeat()
 ```
 
+## Analytics Dashboard
+
+Monitor your FocalPoint usage with a visual HTML dashboard:
+
+```bash
+focalpoint-stats --html
+```
+
+This generates a dashboard in your browser showing:
+- **Health Score** (0-100) across 5 dimensions
+- Node status distribution, tool usage, token efficiency
+- **Node Browser** — click any node to view its narrative history and knowledge docs
+
+Other output formats:
+```bash
+focalpoint-stats          # Text report in terminal
+focalpoint-stats --json   # Raw JSON for scripts
+```
+
+Or ask your AI in Claude Desktop: **"调用 get_stats"**
+
 ## Work Mode
 
 ### Workbench — prepare before you work

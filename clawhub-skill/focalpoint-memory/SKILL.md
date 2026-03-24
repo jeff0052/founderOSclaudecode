@@ -207,7 +207,21 @@ AI:  search_nodes(query="caching decisions")
 -> Finds nodes by title, narrative content, and knowledge docs
 ```
 
-## Available Tools (23)
+## Analytics Dashboard
+
+Monitor your FocalPoint health with a visual dashboard:
+
+```bash
+focalpoint-stats --html    # Opens HTML dashboard in browser
+focalpoint-stats           # Text report in terminal
+focalpoint-stats --json    # JSON for scripts
+```
+
+Or ask your AI: **"call get_stats"** — returns health score + usage report.
+
+The dashboard shows: health score (0-100), node status, tool usage, token efficiency, and an interactive node browser where you can click any node to view its full narrative and knowledge docs.
+
+## Available Tools (24)
 
 ### Write (11)
 | Tool | What it does |
