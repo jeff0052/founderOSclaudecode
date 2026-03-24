@@ -12,6 +12,7 @@ from fpms.analytics import (
     _count_narrative_entries,
     _load_jsonl,
     _node_stats,
+    _resolve_paths,
     _token_stats,
     _tool_stats,
     compute_health_score,
@@ -226,41 +227,46 @@ class TestKnowledgeStats:
         assert stats["nodes_with_knowledge"] == 0
 
 
+@pytest.fixture
+def env_paths(sample_db, sample_events, sample_traces, sample_narratives, sample_knowledge, monkeypatch):
+    """Set environment variables pointing to test fixtures."""
+    monkeypatch.setenv("FPMS_DB_PATH", sample_db)
+    monkeypatch.setenv("FPMS_EVENTS_PATH", sample_events)
+    monkeypatch.setenv("FPMS_NARRATIVES_DIR", sample_narratives)
+    monkeypatch.setenv("FPMS_KNOWLEDGE_DIR", sample_knowledge)
+    # Traces are already in the same tmp_dir as events, auto-detection will find them
+
+
+class TestResolvePaths:
+    def test_from_env(self, env_paths):
+        paths = _resolve_paths()
+        assert paths["db_path"].endswith("fpms.db")
+        assert "narratives" in paths["narratives_dir"]
+        assert "knowledge" in paths["knowledge_dir"]
+
+
 class TestGenerateReport:
-    def test_full_report(self, sample_db, sample_events, sample_traces, sample_narratives, sample_knowledge):
-        report = generate_report(
-            db_path=sample_db,
-            events_path=sample_events,
-            traces_path=sample_traces,
-            narratives_dir=sample_narratives,
-            knowledge_dir=sample_knowledge,
-        )
+    def test_full_report(self, env_paths):
+        report = generate_report()
         assert "generated_at" in report
         assert report["nodes"]["total"] == 4
         assert report["tools"]["total_calls"] == 6
         assert report["tokens"]["total_assemblies"] == 3
         assert report["narratives"]["total_files"] == 2
         assert report["knowledge"]["nodes_with_knowledge"] == 2
+        assert "node_browser" in report
 
 
 class TestHealthScore:
-    def test_full_report_has_health(self, sample_db, sample_events, sample_traces, sample_narratives, sample_knowledge):
-        report = generate_report(
-            db_path=sample_db, events_path=sample_events,
-            traces_path=sample_traces, narratives_dir=sample_narratives,
-            knowledge_dir=sample_knowledge,
-        )
+    def test_full_report_has_health(self, env_paths):
+        report = generate_report()
         health = report["health"]
         assert "total" in health
         assert 0 <= health["total"] <= 100
         assert len(health["dimensions"]) == 5
 
-    def test_dimension_names(self, sample_db, sample_events, sample_traces, sample_narratives, sample_knowledge):
-        report = generate_report(
-            db_path=sample_db, events_path=sample_events,
-            traces_path=sample_traces, narratives_dir=sample_narratives,
-            knowledge_dir=sample_knowledge,
-        )
+    def test_dimension_names(self, env_paths):
+        report = generate_report()
         names = [d["name"] for d in report["health"]["dimensions"]]
         assert "Node Management" in names
         assert "Recording Habits" in names
@@ -268,12 +274,8 @@ class TestHealthScore:
         assert "Token Efficiency" in names
         assert "Tool Utilization" in names
 
-    def test_icons_assigned(self, sample_db, sample_events, sample_traces, sample_narratives, sample_knowledge):
-        report = generate_report(
-            db_path=sample_db, events_path=sample_events,
-            traces_path=sample_traces, narratives_dir=sample_narratives,
-            knowledge_dir=sample_knowledge,
-        )
+    def test_icons_assigned(self, env_paths):
+        report = generate_report()
         for d in report["health"]["dimensions"]:
             assert d["icon"] in ("✅", "⚠️", "❌")
 
@@ -290,26 +292,16 @@ class TestHealthScore:
         assert health["total"] == 0 + 0 + 0 + 10 + 0  # token gets 5*2=10 for "no assemblies yet"
         assert len(health["dimensions"]) == 5
 
-    def test_format_health(self, sample_db, sample_events, sample_traces, sample_narratives, sample_knowledge):
-        report = generate_report(
-            db_path=sample_db, events_path=sample_events,
-            traces_path=sample_traces, narratives_dir=sample_narratives,
-            knowledge_dir=sample_knowledge,
-        )
+    def test_format_health(self, env_paths):
+        report = generate_report()
         text = format_health_score(report["health"])
         assert "Health Score" in text
         assert "/100" in text
 
 
 class TestFormatReport:
-    def test_output_contains_sections(self, sample_db, sample_events, sample_traces, sample_narratives, sample_knowledge):
-        report = generate_report(
-            db_path=sample_db,
-            events_path=sample_events,
-            traces_path=sample_traces,
-            narratives_dir=sample_narratives,
-            knowledge_dir=sample_knowledge,
-        )
+    def test_output_contains_sections(self, env_paths):
+        report = generate_report()
         text = format_report(report)
         assert "FocalPoint Usage Report" in text
         assert "Node Stats" in text

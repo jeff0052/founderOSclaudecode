@@ -566,13 +566,7 @@ def get_stats() -> str:
     Call this to monitor system health and usage patterns.
     """
     from fpms.analytics import generate_report
-    engine = _get_engine()
-    report = generate_report(
-        db_path=engine.store._conn.execute("PRAGMA database_list").fetchone()[2],
-        events_path=engine.store._events_path,
-        narratives_dir=engine._narratives_dir,
-        knowledge_dir=engine._knowledge_dir,
-    )
+    report = generate_report(engine=_get_engine())
     return json.dumps(report, ensure_ascii=False, default=str)
 
 

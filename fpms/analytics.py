@@ -101,26 +101,50 @@ def _count_knowledge_docs(knowledge_dir: str) -> Dict[str, int]:
 # Report generator
 # ---------------------------------------------------------------------------
 
-def generate_report(
-    db_path: str = "fpms/db/fpms.db",
-    events_path: str = "fpms/events.jsonl",
-    traces_path: Optional[str] = None,
-    narratives_dir: str = "fpms/narratives",
-    knowledge_dir: str = "fpms/knowledge",
-) -> dict:
+def _resolve_paths(engine=None) -> dict:
+    """Resolve all data paths from SpineEngine or environment variables.
+
+    Single source of truth for path configuration.
+    """
+    if engine is not None:
+        # Get paths from engine (same as MCP server uses)
+        db_path = engine.store._conn.execute("PRAGMA database_list").fetchone()[2]
+        events_path = engine.store._events_path
+        narratives_dir = engine._narratives_dir
+        knowledge_dir = engine._knowledge_dir
+    else:
+        # Fall back to environment variables (same defaults as SpineEngine)
+        db_path = os.environ.get("FPMS_DB_PATH", "fpms/db/fpms.db")
+        events_path = os.environ.get("FPMS_EVENTS_PATH", "fpms/events.jsonl")
+        narratives_dir = os.environ.get("FPMS_NARRATIVES_DIR", "fpms/narratives")
+        knowledge_dir = os.environ.get("FPMS_KNOWLEDGE_DIR",
+                                        os.path.join(os.path.dirname(narratives_dir), "knowledge"))
+
+    # Auto-detect traces path from db directory
+    db_dir = os.path.dirname(db_path)
+    traces_path = os.path.join(db_dir, "assembly_traces.jsonl") if db_dir else "assembly_traces.jsonl"
+    if not os.path.exists(traces_path):
+        traces_path = os.path.join(os.path.dirname(events_path), "assembly_traces.jsonl")
+
+    return {
+        "db_path": db_path,
+        "events_path": events_path,
+        "traces_path": traces_path,
+        "narratives_dir": narratives_dir,
+        "knowledge_dir": knowledge_dir,
+    }
+
+
+def generate_report(engine=None) -> dict:
     """Generate a complete usage report from all FPMS data sources.
 
-    Returns a structured dict with sections: nodes, tools, tokens, narratives, knowledge.
+    Args:
+        engine: Optional SpineEngine instance. If provided, paths are read from it.
+                If None, paths are resolved from environment variables.
+
+    Returns a structured dict with sections: nodes, tools, tokens, narratives, knowledge, health.
     """
-    # Auto-detect traces path (could be in db dir or fpms dir)
-    if traces_path is None:
-        db_dir = os.path.dirname(db_path)
-        candidate = os.path.join(db_dir, "assembly_traces.jsonl") if db_dir else "assembly_traces.jsonl"
-        if os.path.exists(candidate):
-            traces_path = candidate
-        else:
-            # Try alongside events
-            traces_path = os.path.join(os.path.dirname(events_path), "assembly_traces.jsonl")
+    paths = _resolve_paths(engine)
 
     report: dict = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -132,24 +156,29 @@ def generate_report(
     }
 
     # --- Node Stats (from SQLite) ---
-    report["nodes"] = _node_stats(db_path)
+    report["nodes"] = _node_stats(paths["db_path"])
 
     # --- Tool Usage (from events.jsonl) ---
-    events = _load_jsonl(events_path)
+    events = _load_jsonl(paths["events_path"])
     report["tools"] = _tool_stats(events)
 
     # --- Token Efficiency (from assembly_traces.jsonl) ---
-    traces = _load_jsonl(traces_path)
+    traces = _load_jsonl(paths["traces_path"])
     report["tokens"] = _token_stats(traces)
 
     # --- Narrative Stats ---
-    report["narratives"] = _count_narrative_entries(narratives_dir)
+    report["narratives"] = _count_narrative_entries(paths["narratives_dir"])
 
     # --- Knowledge Stats ---
-    report["knowledge"] = _count_knowledge_docs(knowledge_dir)
+    report["knowledge"] = _count_knowledge_docs(paths["knowledge_dir"])
 
     # --- Health Score ---
     report["health"] = compute_health_score(report)
+
+    # --- Node Browser Data (for HTML) ---
+    report["node_browser"] = _load_node_browser(
+        paths["db_path"], paths["narratives_dir"], paths["knowledge_dir"]
+    )
 
     return report
 
@@ -184,6 +213,81 @@ def _node_stats(db_path: str) -> dict:
         pass
 
     return stats
+
+
+def _load_node_browser(db_path: str, narratives_dir: str, knowledge_dir: str) -> List[dict]:
+    """Load all nodes with their narratives and knowledge for the HTML browser."""
+    nodes = []
+    if not os.path.exists(db_path):
+        return nodes
+
+    try:
+        conn = sqlite3.connect(db_path)
+        cols = [row[1] for row in conn.execute("PRAGMA table_info(nodes)").fetchall()]
+        rows = conn.execute("SELECT * FROM nodes ORDER BY created_at DESC").fetchall()
+
+        # Load edges for parent-child relationships
+        edges = {}
+        try:
+            for row in conn.execute("SELECT source_id, target_id, edge_type FROM edges"):
+                src, tgt, etype = row
+                if etype == "parent":
+                    edges.setdefault("children", {}).setdefault(tgt, []).append(src)
+                elif etype == "depends_on":
+                    edges.setdefault("deps", {}).setdefault(src, []).append(tgt)
+        except Exception:
+            pass
+
+        conn.close()
+
+        for row in rows:
+            d = dict(zip(cols, row))
+            node_id = d["id"]
+
+            # Load narrative
+            narr_path = os.path.join(narratives_dir, f"{node_id}.md")
+            narrative = ""
+            if os.path.exists(narr_path):
+                with open(narr_path, "r") as f:
+                    narrative = f.read()
+
+            # Load knowledge docs
+            knowledge = {}
+            know_dir = os.path.join(knowledge_dir, node_id)
+            if os.path.isdir(know_dir):
+                for fname in sorted(os.listdir(know_dir)):
+                    if fname.endswith(".md"):
+                        with open(os.path.join(know_dir, fname), "r") as f:
+                            knowledge[fname.replace(".md", "")] = f.read()
+
+            # Children and dependencies
+            children_ids = edges.get("children", {}).get(node_id, [])
+            dep_ids = edges.get("deps", {}).get(node_id, [])
+
+            nodes.append({
+                "id": node_id,
+                "title": d.get("title", ""),
+                "status": d.get("status", ""),
+                "node_type": d.get("node_type", ""),
+                "parent_id": d.get("parent_id"),
+                "is_root": bool(d.get("is_root", 0)),
+                "summary": d.get("summary") or "",
+                "why": d.get("why") or "",
+                "next_step": d.get("next_step") or "",
+                "owner": d.get("owner") or "",
+                "deadline": d.get("deadline") or "",
+                "created_at": d.get("created_at", ""),
+                "updated_at": d.get("updated_at", ""),
+                "status_changed_at": d.get("status_changed_at", ""),
+                "children": children_ids,
+                "dependencies": dep_ids,
+                "narrative": narrative,
+                "knowledge": knowledge,
+            })
+    except Exception:
+        pass
+
+    return nodes
 
 
 def _tool_stats(events: List[dict]) -> dict:
@@ -669,6 +773,10 @@ def format_html(report: dict) -> str:
         ring_color = "#ef4444"
         grade = "Getting Started"
 
+    # Serialize node browser data for JS
+    node_browser = report.get("node_browser", [])
+    nodes_json = json.dumps(node_browser, ensure_ascii=False, default=str)
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -802,8 +910,200 @@ def format_html(report: dict) -> str:
     </div>
   </div>
 
+  <!-- Node Browser -->
+  <div class="panel" style="margin-bottom:2rem">
+    <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Node Browser</span>
+      <input id="nodeSearch" type="text" placeholder="Search nodes..." style="background:#334155;border:1px solid #475569;border-radius:6px;padding:4px 10px;color:#e2e8f0;font-size:0.8rem;width:200px;outline:none">
+    </div>
+    <div id="nodeTree" style="margin-top:1rem"></div>
+  </div>
+
+  <!-- Node Detail Modal -->
+  <div id="nodeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;overflow-y:auto">
+    <div style="max-width:800px;margin:2rem auto;background:#1e293b;border-radius:12px;padding:2rem;position:relative">
+      <button onclick="closeModal()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:#94a3b8;font-size:1.5rem;cursor:pointer">&times;</button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
   <div class="footer">FocalPoint v0.3 — AI Cognitive Operating System</div>
 </div>
+
+<script>
+const NODES = {nodes_json};
+
+const STATUS_COLORS = {{"active":"#3b82f6","done":"#22c55e","inbox":"#9ca3af","waiting":"#f59e0b","dropped":"#ef4444"}};
+const TYPE_ICONS = {{"goal":"🎯","project":"📁","milestone":"🏁","task":"📋","unknown":"📄"}};
+const STATUS_ICONS = {{"inbox":"📥","active":"▶️","waiting":"⏳","done":"✅","dropped":"❌"}};
+
+function buildTree() {{
+  const byParent = {{}};
+  const roots = [];
+  NODES.forEach(n => {{
+    if (n.parent_id) {{
+      if (!byParent[n.parent_id]) byParent[n.parent_id] = [];
+      byParent[n.parent_id].push(n);
+    }} else {{
+      roots.push(n);
+    }}
+  }});
+
+  function renderNode(node, depth) {{
+    const children = byParent[node.id] || [];
+    const indent = depth * 20;
+    const statusIcon = STATUS_ICONS[node.status] || "▶️";
+    const typeIcon = TYPE_ICONS[node.node_type] || "📄";
+    const color = STATUS_COLORS[node.status] || "#94a3b8";
+    const hasChildren = children.length > 0;
+    const arrow = hasChildren ? '<span class="tree-arrow" onclick="toggleChildren(this)">▼</span>' : '<span style="width:16px;display:inline-block"></span>';
+
+    let html = `<div class="tree-node" data-id="${{node.id}}" data-title="${{node.title.toLowerCase()}}" style="padding-left:${{indent}}px">
+      ${{arrow}}
+      <span class="tree-type">${{typeIcon}}</span>
+      <span class="tree-status" style="color:${{color}}">${{statusIcon}}</span>
+      <span class="tree-title" onclick="showNode('${{node.id}}')">${{node.title}}</span>
+      <span class="tree-id">${{node.id}}</span>
+      <span class="tree-badge" style="background:${{color}}20;color:${{color}}">${{node.status}}</span>
+    </div>`;
+
+    if (hasChildren) {{
+      html += `<div class="tree-children">`;
+      children.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+      children.forEach(c => {{ html += renderNode(c, depth + 1); }});
+      html += `</div>`;
+    }}
+    return html;
+  }}
+
+  let html = '';
+  roots.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+  roots.forEach(r => {{ html += renderNode(r, 0); }});
+  document.getElementById('nodeTree').innerHTML = html || '<div style="color:#64748b;padding:1rem">No nodes found</div>';
+}}
+
+function toggleChildren(el) {{
+  const children = el.parentElement.nextElementSibling;
+  if (children && children.classList.contains('tree-children')) {{
+    const collapsed = children.style.display === 'none';
+    children.style.display = collapsed ? 'block' : 'none';
+    el.textContent = collapsed ? '▼' : '▶';
+  }}
+}}
+
+function escapeHtml(str) {{
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}}
+
+function showNode(nodeId) {{
+  const node = NODES.find(n => n.id === nodeId);
+  if (!node) return;
+
+  const statusColor = STATUS_COLORS[node.status] || "#94a3b8";
+  const typeIcon = TYPE_ICONS[node.node_type] || "📄";
+
+  let html = `
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem">
+      <span style="font-size:1.5rem">${{typeIcon}}</span>
+      <h2 style="font-size:1.25rem;font-weight:600">${{escapeHtml(node.title)}}</h2>
+      <span style="background:${{statusColor}}20;color:${{statusColor}};padding:2px 8px;border-radius:4px;font-size:0.8rem">${{node.status}}</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:1.5rem;font-size:0.85rem">
+      <div><span style="color:#64748b">ID:</span> ${{node.id}}</div>
+      <div><span style="color:#64748b">Type:</span> ${{node.node_type}}</div>
+      <div><span style="color:#64748b">Created:</span> ${{(node.created_at||'').slice(0,19)}}</div>
+      <div><span style="color:#64748b">Updated:</span> ${{(node.updated_at||'').slice(0,19)}}</div>
+      ${{node.owner ? `<div><span style="color:#64748b">Owner:</span> ${{escapeHtml(node.owner)}}</div>` : ''}}
+      ${{node.deadline ? `<div><span style="color:#64748b">Deadline:</span> ${{node.deadline}}</div>` : ''}}
+      ${{node.parent_id ? `<div><span style="color:#64748b">Parent:</span> <a href="#" onclick="showNode('${{node.parent_id}}');return false" style="color:#3b82f6">${{node.parent_id}}</a></div>` : ''}}
+    </div>`;
+
+  if (node.summary) {{
+    html += `<div style="margin-bottom:1rem"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:0.25rem">SUMMARY</div><div style="font-size:0.9rem">${{escapeHtml(node.summary)}}</div></div>`;
+  }}
+  if (node.why) {{
+    html += `<div style="margin-bottom:1rem"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:0.25rem">WHY</div><div style="font-size:0.9rem">${{escapeHtml(node.why)}}</div></div>`;
+  }}
+  if (node.next_step) {{
+    html += `<div style="margin-bottom:1rem"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:0.25rem">NEXT STEP</div><div style="font-size:0.9rem">${{escapeHtml(node.next_step)}}</div></div>`;
+  }}
+
+  // Children
+  if (node.children && node.children.length > 0) {{
+    html += `<div style="margin-bottom:1rem"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:0.5rem">CHILDREN (${{node.children.length}})</div>`;
+    node.children.forEach(cid => {{
+      const child = NODES.find(n => n.id === cid);
+      if (child) {{
+        const c = STATUS_COLORS[child.status] || "#94a3b8";
+        html += `<div style="display:flex;align-items:center;gap:0.5rem;padding:4px 0"><span style="color:${{c}}">${{STATUS_ICONS[child.status]||'▶️'}}</span><a href="#" onclick="showNode('${{cid}}');return false" style="color:#3b82f6;font-size:0.85rem">${{escapeHtml(child.title)}}</a><span style="color:#64748b;font-size:0.75rem">${{cid}}</span></div>`;
+      }}
+    }});
+    html += `</div>`;
+  }}
+
+  // Knowledge
+  const knowKeys = Object.keys(node.knowledge || {{}});
+  if (knowKeys.length > 0) {{
+    html += `<div style="margin-bottom:1rem"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:0.5rem">KNOWLEDGE (${{knowKeys.length}} docs)</div>`;
+    knowKeys.forEach(k => {{
+      html += `<div style="margin-bottom:0.75rem">
+        <div style="color:#8b5cf6;font-size:0.8rem;font-weight:600;margin-bottom:0.25rem">${{k}}</div>
+        <pre style="background:#0f172a;padding:0.75rem;border-radius:6px;font-size:0.8rem;overflow-x:auto;white-space:pre-wrap;color:#cbd5e1;max-height:300px;overflow-y:auto">${{escapeHtml(node.knowledge[k])}}</pre>
+      </div>`;
+    }});
+    html += `</div>`;
+  }}
+
+  // Narrative
+  if (node.narrative && node.narrative.trim()) {{
+    html += `<div><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:0.5rem">NARRATIVE</div>
+      <pre style="background:#0f172a;padding:0.75rem;border-radius:6px;font-size:0.78rem;overflow-x:auto;white-space:pre-wrap;color:#cbd5e1;max-height:400px;overflow-y:auto">${{escapeHtml(node.narrative)}}</pre>
+    </div>`;
+  }}
+
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('nodeModal').style.display = 'block';
+}}
+
+function closeModal() {{
+  document.getElementById('nodeModal').style.display = 'none';
+}}
+
+document.getElementById('nodeModal').addEventListener('click', function(e) {{
+  if (e.target === this) closeModal();
+}});
+
+document.getElementById('nodeSearch').addEventListener('input', function(e) {{
+  const q = e.target.value.toLowerCase();
+  document.querySelectorAll('.tree-node').forEach(el => {{
+    const title = el.dataset.title || '';
+    const id = el.dataset.id || '';
+    const match = !q || title.includes(q) || id.includes(q);
+    el.style.display = match ? 'flex' : 'none';
+  }});
+}});
+
+document.addEventListener('keydown', function(e) {{
+  if (e.key === 'Escape') closeModal();
+}});
+
+buildTree();
+</script>
+
+<style>
+  .tree-node {{ display: flex; align-items: center; gap: 6px; padding: 4px 0; cursor: default; }}
+  .tree-node:hover {{ background: #334155; border-radius: 4px; }}
+  .tree-arrow {{ cursor: pointer; font-size: 0.7rem; width: 16px; text-align: center; color: #64748b; }}
+  .tree-type {{ font-size: 0.9rem; }}
+  .tree-status {{ font-size: 0.8rem; }}
+  .tree-title {{ font-size: 0.85rem; cursor: pointer; color: #e2e8f0; }}
+  .tree-title:hover {{ color: #3b82f6; text-decoration: underline; }}
+  .tree-id {{ font-size: 0.7rem; color: #475569; }}
+  .tree-badge {{ font-size: 0.65rem; padding: 1px 6px; border-radius: 3px; }}
+  .tree-children {{ }}
+  #nodeModal pre {{ scrollbar-width: thin; scrollbar-color: #475569 #0f172a; }}
+</style>
 </body>
 </html>"""
 
@@ -813,34 +1113,32 @@ def format_html(report: dict) -> str:
 # ---------------------------------------------------------------------------
 
 def main():
-    """CLI entry point: focalpoint-stats"""
+    """CLI entry point: focalpoint-stats
+
+    Uses SpineEngine to resolve all data paths automatically.
+    No manual path arguments needed — reads same data as MCP server.
+    """
     import argparse
 
     parser = argparse.ArgumentParser(
         prog="focalpoint-stats",
         description="FocalPoint usage analytics report",
     )
-    parser.add_argument("--db", default=os.environ.get("FPMS_DB_PATH", "fpms/db/fpms.db"),
-                        help="SQLite DB path")
-    parser.add_argument("--events", default=os.environ.get("FPMS_EVENTS_PATH", "fpms/events.jsonl"),
-                        help="Events JSONL path")
-    parser.add_argument("--traces", default=None, help="Assembly traces JSONL path")
-    parser.add_argument("--narratives", default=os.environ.get("FPMS_NARRATIVES_DIR", "fpms/narratives"),
-                        help="Narratives directory")
-    parser.add_argument("--knowledge", default="fpms/knowledge", help="Knowledge directory")
     parser.add_argument("--json", action="store_true", help="Output raw JSON instead of formatted text")
     parser.add_argument("--html", nargs="?", const="focalpoint-dashboard.html",
                         help="Generate HTML dashboard (default: focalpoint-dashboard.html)")
 
     args = parser.parse_args()
 
-    report = generate_report(
-        db_path=args.db,
-        events_path=args.events,
-        traces_path=args.traces,
-        narratives_dir=args.narratives,
-        knowledge_dir=args.knowledge,
+    # Use SpineEngine as single source of truth for paths
+    from fpms.spine import SpineEngine
+    engine = SpineEngine(
+        db_path=os.environ.get("FPMS_DB_PATH", "fpms/db/fpms.db"),
+        events_path=os.environ.get("FPMS_EVENTS_PATH", "fpms/events.jsonl"),
+        narratives_dir=os.environ.get("FPMS_NARRATIVES_DIR", "fpms/narratives"),
     )
+
+    report = generate_report(engine=engine)
 
     if args.html:
         html_path = args.html
