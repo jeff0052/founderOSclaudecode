@@ -1,0 +1,10 @@
+.DS_Store
+__pycache__/
+*.pyc
+data/
+fpms/narratives/
+fpms/db/
+fpms/knowledge/
+fpms/events.jsonl
+fpms/assembly_traces.jsonl
+dist/

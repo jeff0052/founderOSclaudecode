@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "focalpoint"
+version = "0.4.0"
+description = "FocalPoint — The attention manager for AI agents. Persistent memory, structured work tracking, proactive risk alerts, and bidirectional sync with GitHub/Notion."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+authors = [
+    { name = "Jeff", email = "jeff@ontanetwork.com" },
+]
+keywords = ["ai", "agent", "memory", "mcp", "context", "cognitive"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: Other/Proprietary License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "pydantic>=2.0",
+    "mcp[cli]>=1.2.0",
+    "httpx>=0.24",
+]
+
+[project.urls]
+Homepage = "https://github.com/jeff0052/founderOSclaudecode"
+Repository = "https://github.com/jeff0052/founderOSclaudecode"
+
+[project.scripts]
+focalpoint = "fpms.mcp_server:main"
+fpms = "fpms.mcp_server:main"
+focalpoint-stats = "fpms.analytics:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["fpms"]
